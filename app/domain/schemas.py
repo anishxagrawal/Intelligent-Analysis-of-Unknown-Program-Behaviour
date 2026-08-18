@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.domain.enums import JobStatus, RunOutcome
 from app.domain.models import Job, Sample
+from app.filetypes.base import FileType
 
 
 class SampleRead(BaseModel):
@@ -25,6 +26,9 @@ class SampleRead(BaseModel):
     md5: str
     size_bytes: int
     first_seen_at: datetime
+    file_type: FileType = Field(
+        description="Container format, decided from the leading bytes and never from the name.",
+    )
     submission_count: int = Field(
         description="How many times these exact bytes have been submitted."
     )
@@ -37,6 +41,7 @@ class SampleRead(BaseModel):
             md5=sample.md5,
             size_bytes=sample.size_bytes,
             first_seen_at=sample.first_seen_at,
+            file_type=sample.file_type,
             submission_count=len(sample.jobs),
         )
 
@@ -78,6 +83,10 @@ class JobRead(BaseModel):
     sha1: str
     md5: str
     size_bytes: int
+    file_type: FileType = Field(
+        default=FileType.UNKNOWN,
+        description="Container format of the submitted bytes.",
+    )
 
     @classmethod
     def from_job(cls, job: Job) -> JobRead:
@@ -93,6 +102,7 @@ class JobRead(BaseModel):
             sha1=job.sample.sha1,
             md5=job.sample.md5,
             size_bytes=job.sample.size_bytes,
+            file_type=job.sample.file_type,
         )
 
 
@@ -106,6 +116,9 @@ class SubmissionAccepted(BaseModel):
     job_id: uuid.UUID = Field(description="Identifier for polling job status.")
     status: JobStatus = Field(description="Lifecycle state at the moment of acceptance.")
     sha256: str = Field(description="Content hash of the submitted bytes.")
+    file_type: FileType = Field(
+        description="Container format, decided from the leading bytes and never from the name.",
+    )
     duplicate: bool = Field(
         description="True when these exact bytes had already been stored.",
     )

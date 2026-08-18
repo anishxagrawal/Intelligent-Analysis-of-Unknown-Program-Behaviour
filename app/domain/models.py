@@ -1,12 +1,13 @@
 """ORM models.
 
-Two tables. The split matters: a *sample* is content, a *job* is a request to
-analyse it. Submitting the same file twice creates two jobs referring to one
-sample, which is what allows storage to be deduplicated while still recording
-that the file was seen again.
+The central split: a *sample* is content, a *job* is a request to analyse it.
+Submitting the same file twice creates two jobs referring to one sample, which
+is what allows storage to be deduplicated while still recording that the file
+was seen again.
 
-Later versions extend this:
-  v4 adds the detected file type to Sample.
+Two supporting tables arrive with access control in v4. ``api_keys`` is who may
+call, and ``audit_events`` is what they did - kept beside the domain tables
+because they share one metadata object and therefore one migration history.
 """
 
 from __future__ import annotations
@@ -14,12 +15,23 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Integer, String, Uuid
+from sqlalchemy import (
+    ARRAY,
+    BigInteger,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.domain.enums import JobStatus, RunOutcome
 from app.domain.lifecycle import validate_transition
+from app.filetypes.base import FileType
 
 SHA256_LENGTH = 64
 SHA1_LENGTH = 40
@@ -36,6 +48,11 @@ JOB_STATUS_ENUM = Enum(
 RUN_OUTCOME_ENUM = Enum(
     RunOutcome,
     name="run_outcome",
+    values_callable=lambda enum: [member.value for member in enum],
+)
+FILE_TYPE_ENUM = Enum(
+    FileType,
+    name="file_type",
     values_callable=lambda enum: [member.value for member in enum],
 )
 
@@ -74,6 +91,15 @@ class Sample(Base):
 
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utc_now, nullable=False
+    )
+
+    #: Container format, decided from the leading bytes and never from the
+    #: submitted name. ``unknown`` is a real answer rather than a null, so
+    #: "nothing recognised this" stays distinct from "detection never ran".
+    #: It belongs to the sample rather than the job because it is a property of
+    #: the content, which does not change when the file is renamed.
+    file_type: Mapped[FileType] = mapped_column(
+        FILE_TYPE_ENUM, default=FileType.UNKNOWN, nullable=False, index=True
     )
 
     jobs: Mapped[list[Job]] = relationship(back_populates="sample", lazy="selectin")
@@ -209,3 +235,101 @@ class Job(Base):
 
     def __repr__(self) -> str:
         return f"<Job id={self.id} status={self.status.value} file={self.original_filename!r}>"
+
+
+class ApiKey(Base):
+    """A credential belonging to a calling system.
+
+    Only the hash is stored. The plaintext exists once, at creation, and is
+    never recoverable - so a database dump yields no working credentials, and
+    "I lost my key" is answered by issuing a new one rather than by looking the
+    old one up.
+
+    Keys are disabled rather than deleted. Audit rows point at the key that made
+    each call, and deleting the key would leave the trail referring to something
+    that no longer exists.
+    """
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+
+    #: SHA-256 of the token, hex. Unique because authentication is a lookup by
+    #: this column, and two keys hashing alike would be a collision worth
+    #: hearing about immediately.
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+
+    scopes: Mapped[list[str]] = mapped_column(ARRAY(String(64)), nullable=False, default=list)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, nullable=False
+    )
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    #: Set to revoke. A key with this populated authenticates nothing.
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def is_active(self) -> bool:
+        return self.disabled_at is None
+
+    def __repr__(self) -> str:
+        state = "active" if self.is_active else "disabled"
+        return f"<ApiKey name={self.name!r} {state}>"
+
+
+class AuditEvent(Base):
+    """One thing that happened, recorded permanently.
+
+    Append-only. Nothing in this codebase updates or deletes a row here, and
+    that is the property the table exists for: an audit trail that can be edited
+    answers no question worth asking. It is enforced by convention and by review
+    rather than by a database rule, which is a real limitation and is stated as
+    one.
+
+    Both successes and failures are recorded. A trail containing only successes
+    hides exactly the pattern worth finding - a key trying repeatedly to do
+    something it is not allowed to do.
+
+    ``api_key_id`` is nullable because the most interesting events are the ones
+    where authentication failed and there is no key to point at.
+    """
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, nullable=False, index=True
+    )
+
+    #: Dotted event name, for example ``submission.accepted`` or ``auth.failed``.
+    #: Free-form text rather than an enum: the vocabulary will grow with every
+    #: later stage, and a migration per new event name would be friction with no
+    #: benefit for a column nothing branches on.
+    event: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+
+    #: ``allowed`` or ``denied``. Two values, so counting refusals is one query.
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+
+    api_key_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("api_keys.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
+    #: The correlation id from the request that caused this, so an audit row and
+    #: the log lines describing the same request can be lined up.
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
+    method: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    #: Human-readable context. Never a credential, and never anything derived
+    #: from one: a rejected key must not be recoverable from the audit trail.
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<AuditEvent {self.event} {self.outcome} at {self.occurred_at}>"

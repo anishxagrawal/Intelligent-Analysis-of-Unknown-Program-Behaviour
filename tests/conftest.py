@@ -99,13 +99,24 @@ async def test_database_url(base_settings: Settings) -> AsyncIterator[str]:
         await admin_engine.dispose()
 
 
+#: The key every authenticated test fixture presents. A fixed value rather than
+#: a random one so a failing request is reproducible by hand from the logs.
+TEST_API_KEY = "upa_test_key_with_every_scope"
+
+
 @pytest.fixture
 def settings(test_database_url: str, tmp_path: Path) -> Settings:
-    """Settings pointing at the throwaway database and a temporary storage root."""
+    """Settings pointing at the throwaway database and a temporary storage root.
+
+    The rate limit is set high enough that no test trips it by accident. The
+    tests that care about limiting build their own settings with a low one.
+    """
     return Settings(
         environment="test",
         database_url=test_database_url,
         storage_root=tmp_path / "samples",
+        bootstrap_api_key=TEST_API_KEY,
+        rate_limit_per_minute=10_000,
     )
 
 
@@ -116,7 +127,24 @@ def sample_bytes() -> bytes:
 
 
 @pytest_asyncio.fixture
-async def app(settings: Settings) -> AsyncIterator[FastAPI]:
+async def clean_database(settings: Settings) -> None:
+    """Empty every table, once, before anything else in the test touches them.
+
+    A single fixture rather than truncation inside each of the others. Ordering
+    matters here: the application's lifespan seeds the bootstrap API key, so a
+    truncation running afterwards would delete the credential every
+    authenticated test depends on. Depending on one fixture makes the ordering
+    a fact rather than a convention.
+    """
+    engine = create_engine(settings)
+    try:
+        await truncate_all_tables(engine)
+    finally:
+        await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def app(settings: Settings, clean_database: None) -> AsyncIterator[FastAPI]:
     """A running application bound to the throwaway database.
 
     The lifespan is entered explicitly because httpx's ASGI transport does not
@@ -126,20 +154,37 @@ async def app(settings: Settings) -> AsyncIterator[FastAPI]:
 
     application = create_app(settings)
     async with application.router.lifespan_context(application):
-        await truncate_all_tables(application.state.engine)
         yield application
 
 
 @pytest_asyncio.fixture
 async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
-    """An HTTP client speaking directly to the app, with no network involved."""
+    """An authenticated client, holding every scope.
+
+    Most tests are about something other than authentication and would be made
+    worse by restating it. The tests that *are* about it use
+    ``anonymous_client`` and build their own keys, so authentication is still
+    proved rather than assumed - see tests/integration/test_auth.py.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers={"X-API-Key": TEST_API_KEY},
+    ) as http_client:
+        yield http_client
+
+
+@pytest_asyncio.fixture
+async def anonymous_client(app: FastAPI) -> AsyncIterator[AsyncClient]:
+    """A client presenting no credential at all."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as http_client:
         yield http_client
 
 
 @pytest_asyncio.fixture
-async def engine(settings: Settings) -> AsyncIterator[AsyncEngine]:
+async def engine(settings: Settings, clean_database: None) -> AsyncIterator[AsyncEngine]:
     """An engine on the throwaway database, for tests that do not need the API.
 
     Separate from the ``app`` fixture on purpose. The queue is exercised
@@ -148,7 +193,6 @@ async def engine(settings: Settings) -> AsyncIterator[AsyncEngine]:
     tested.
     """
     db_engine = create_engine(settings)
-    await truncate_all_tables(db_engine)
     try:
         yield db_engine
     finally:

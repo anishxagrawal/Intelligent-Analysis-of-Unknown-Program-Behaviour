@@ -20,6 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.errors import AppError
 from app.domain.hashing import ContentHashes, StreamHasher
 from app.domain.models import Job, Sample
+from app.filetypes.base import HEADER_SIZE, FileType
+from app.filetypes.registry import detect
 from app.logging import get_logger
 from app.queue.base import JobQueue
 from app.storage.base import SampleStorage
@@ -43,6 +45,7 @@ class IntakeResult:
 
     job: Job
     hashes: ContentHashes
+    file_type: FileType
     duplicate: bool
 
 
@@ -63,25 +66,31 @@ class IntakeService:
 
     async def submit(self, upload: UploadFile) -> IntakeResult:
         """Store the uploaded bytes and record a job for them."""
-        staged, hashes = await self._stage(upload)
+        staged, hashes, header = await self._stage(upload)
         try:
-            return await self._record(staged, hashes, upload.filename or "unnamed")
+            return await self._record(staged, hashes, header, upload.filename or "unnamed")
         finally:
             # The staging file is always removed. It has either been copied into
             # storage or is not wanted, and either way leaving it would slowly
             # fill the disk with material nothing references.
             staged.unlink(missing_ok=True)
 
-    async def _stage(self, upload: UploadFile) -> tuple[Path, ContentHashes]:
+    async def _stage(self, upload: UploadFile) -> tuple[Path, ContentHashes, bytes]:
         """Stream the upload to a temporary file, hashing as it goes.
 
         The size limit is enforced *during* the stream. Checking afterwards
         would mean a caller could make the service consume unbounded disk before
         the request was refused.
+
+        The first :data:`HEADER_SIZE` bytes are kept as they pass, for file type
+        detection. Taken from the stream rather than read back from the staging
+        file, because it costs nothing here and a second read of a file that may
+        be gigabytes is not free.
         """
         hasher = StreamHasher()
         descriptor, name = tempfile.mkstemp(suffix=".upload")
         staged = Path(name)
+        header = bytearray()
 
         try:
             with os.fdopen(descriptor, "wb") as sink:
@@ -91,17 +100,27 @@ class IntakeService:
                         raise UploadTooLargeError(
                             f"Upload exceeds the {self._max_upload_bytes} byte limit."
                         )
+                    if len(header) < HEADER_SIZE:
+                        header.extend(chunk[: HEADER_SIZE - len(header)])
                     sink.write(chunk)
         except BaseException:
             staged.unlink(missing_ok=True)
             raise
 
-        return staged, hasher.result()
+        return staged, hasher.result(), bytes(header)
 
-    async def _record(self, staged: Path, hashes: ContentHashes, filename: str) -> IntakeResult:
+    async def _record(
+        self, staged: Path, hashes: ContentHashes, header: bytes, filename: str
+    ) -> IntakeResult:
         """Store the content if new, then create a job referring to it."""
         sample = await self._session.get(Sample, hashes.sha256)
         duplicate = sample is not None
+
+        # Detection reads the leading bytes and never the submitted name, which
+        # is attacker-controlled. A duplicate keeps the type decided the first
+        # time: it is a property of the content, and the content is identical
+        # by definition.
+        file_type = sample.file_type if sample is not None else detect(header)
 
         # Storing is idempotent because the key is the content hash, so a repeat
         # put writes identical bytes. The existence check also repairs the case
@@ -115,6 +134,7 @@ class IntakeService:
                 sha1=hashes.sha1,
                 md5=hashes.md5,
                 size_bytes=hashes.size_bytes,
+                file_type=file_type,
             )
             self._session.add(sample)
 
@@ -147,11 +167,14 @@ class IntakeService:
                 "job_id": str(job.id),
                 "sha256": hashes.sha256,
                 "size_bytes": hashes.size_bytes,
+                "file_type": file_type.value,
                 "duplicate": duplicate,
             },
         )
 
-        return IntakeResult(job=job, hashes=hashes, duplicate=duplicate)
+        return IntakeResult(
+            job=job, hashes=hashes, file_type=file_type, duplicate=duplicate
+        )
 
 
 async def find_sample(session: AsyncSession, sha256: str) -> Sample | None:

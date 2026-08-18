@@ -18,6 +18,9 @@ from app.api.routes import health, jobs, samples, submissions
 from app.config import Settings, get_settings
 from app.db.session import create_engine, create_sessionmaker
 from app.logging import configure_logging, get_logger, set_request_id
+from app.security.audit import AuditLog
+from app.security.provisioning import ensure_bootstrap_key
+from app.security.ratelimit import TokenBucketRateLimiter
 from app.storage.factory import build_storage
 from app.version import APP_VERSION
 
@@ -47,10 +50,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # Run `alembic upgrade head` before starting. See README.md.
         settings.storage_root.mkdir(parents=True, exist_ok=True)
 
+        sessionmaker = create_sessionmaker(engine)
+
         app.state.settings = settings
         app.state.engine = engine
-        app.state.sessionmaker = create_sessionmaker(engine)
+        app.state.sessionmaker = sessionmaker
         app.state.storage = build_storage(settings)
+        app.state.audit = AuditLog(sessionmaker)
+        app.state.rate_limiter = TokenBucketRateLimiter(
+            rate_per_minute=settings.rate_limit_per_minute,
+            burst=settings.rate_limit_burst,
+        )
+
+        if settings.bootstrap_api_key:
+            await ensure_bootstrap_key(sessionmaker, settings.bootstrap_api_key)
 
         logger.info("application started", extra={"environment": settings.environment})
         try:

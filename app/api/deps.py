@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.queue.base import JobQueue
 from app.queue.database import DatabaseJobQueue
+from app.security.audit import AuditLog
+from app.security.ratelimit import RateLimiter
 from app.services.intake import IntakeService
 from app.storage.base import SampleStorage
 
@@ -37,6 +39,27 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     sessionmaker = request.app.state.sessionmaker
     async with sessionmaker() as session:
         yield session
+
+
+def get_audit_log(request: Request) -> AuditLog:
+    """Return the audit log.
+
+    Built on the application's session factory rather than on the request's
+    session, because an audit row has to survive the rollback of the request
+    that produced it.
+    """
+    audit: AuditLog = request.app.state.audit
+    return audit
+
+
+def get_rate_limiter(request: Request) -> RateLimiter:
+    """Return the process-wide rate limiter.
+
+    Application state, not a per-request object: a limiter that forgot its
+    buckets every request would limit nothing.
+    """
+    limiter: RateLimiter = request.app.state.rate_limiter
+    return limiter
 
 
 def get_queue(session: AsyncSession = Depends(get_session)) -> JobQueue:

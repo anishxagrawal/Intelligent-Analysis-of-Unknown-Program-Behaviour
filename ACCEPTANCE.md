@@ -154,14 +154,37 @@ same new bytes at the same moment can race on the sample row. v5 (AC-25).
 
 ## v4 — Identification and Access
 
-| ID | Requirement | Status |
-|---|---|---|
-| AC-06 | A PE renamed to `.txt` is still detected as PE | pending |
-| AC-07 | Unknown file type recorded as `unknown`, not guessed | pending |
-| AC-10 | Missing or bad API key returns 401 | pending |
-| AC-11 | Valid key with the wrong scope returns 403 | pending |
-| AC-12 | Exceeding the rate limit returns 429 | pending |
-| AC-19 | Every submission and every auth failure writes an audit row | pending |
+| ID | Requirement | Test | Status |
+|---|---|---|---|
+| AC-06 | A PE renamed to `.txt` is still detected as PE | `tests/acceptance/test_v4_criteria.py` | done |
+| AC-07 | Unknown file type recorded as `unknown`, not guessed | `tests/acceptance/test_v4_criteria.py` | done |
+| AC-10 | Missing or bad API key returns 401 | `tests/acceptance/test_v4_criteria.py` | done |
+| AC-11 | Valid key with the wrong scope returns 403 | `tests/acceptance/test_v4_criteria.py` | done |
+| AC-12 | Exceeding the rate limit returns 429 | `tests/acceptance/test_v4_criteria.py` | done |
+| AC-19 | Every submission and every auth failure writes an audit row | `tests/acceptance/test_v4_criteria.py` | done |
+
+### Known limitations remaining after v4
+
+**The rate limiter is per process.** An in-memory token bucket limits each
+worker separately, so four workers enforce four times the configured rate. The
+`RateLimiter` interface exists precisely so Redis can replace the implementation
+without touching a caller; until then, deployments running more than one process
+should set the limit accordingly.
+
+**The audit trail is append-only by convention.** Nothing in this codebase
+updates or deletes a row in `audit_events`, but the database does not stop
+anyone who tries. A rule or a trigger would; that is a deployment-hardening
+decision rather than an application one, and it is recorded here rather than
+implied.
+
+**Detection reads only the first 512 bytes.** Formats that cannot be recognised
+from their header are reported as `unknown`, which is correct but incomplete.
+Deeper inspection - parsing structure, entropy, imports - is Stage 2's work.
+
+**OOXML detection can be fooled.** A crafted ZIP that names
+`[Content_Types].xml` first is reported as `ooxml`. The consequence is a
+misfiled container, not a security boundary crossed; nothing in Stage 1 decides
+whether a file is safe.
 
 ---
 

@@ -7,11 +7,15 @@ with each other and the reasoning belongs in one place.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
 
-from app.api.deps import get_intake_service, get_settings_dep
+from app.api.deps import get_audit_log, get_intake_service, get_settings_dep
 from app.config import Settings
 from app.domain.schemas import SubmissionAccepted
+from app.security import audit as events
+from app.security.audit import AuditLog
+from app.security.auth import Caller, require_scope
+from app.security.scopes import Scope
 from app.services.intake import IntakeService
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -24,10 +28,13 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
     summary="Submit a file for analysis",
 )
 async def create_submission(
+    request: Request,
     response: Response,
     file: UploadFile = File(description="The file to analyse."),
     intake: IntakeService = Depends(get_intake_service),
     settings: Settings = Depends(get_settings_dep),
+    audit: AuditLog = Depends(get_audit_log),
+    caller: Caller = Depends(require_scope(Scope.SUBMISSIONS_WRITE)),
 ) -> SubmissionAccepted:
     """Accept a file, store it, and queue a job for it.
 
@@ -37,12 +44,33 @@ async def create_submission(
     and never used to build a path - stored objects are named by content hash -
     so a name like "../../evil.exe" cannot escape the storage root.
     """
-    result = await intake.submit(file)
+    try:
+        result = await intake.submit(file)
+    except Exception as exc:
+        # Rejections are audited too. A trail of successes hides the pattern
+        # worth finding: a caller repeatedly pushing files this system refuses.
+        await audit.record(
+            events.SUBMISSION_REJECTED,
+            events.DENIED,
+            request=request,
+            api_key_id=caller.key_id,
+            detail=f"{type(exc).__name__}: {exc}",
+        )
+        raise
+
+    await audit.record(
+        events.SUBMISSION_ACCEPTED,
+        events.ALLOWED,
+        request=request,
+        api_key_id=caller.key_id,
+        detail=f"job {result.job.id} sha256 {result.hashes.sha256}",
+    )
 
     response.headers["Location"] = f"{settings.api_prefix}/jobs/{result.job.id}"
     return SubmissionAccepted(
         job_id=result.job.id,
         status=result.job.status,
         sha256=result.hashes.sha256,
+        file_type=result.file_type,
         duplicate=result.duplicate,
     )

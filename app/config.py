@@ -108,6 +108,29 @@ class Settings(BaseSettings):
         description="How long a worker waits before asking for work again when the queue is empty.",
     )
 
+    # -- Access control ---------------------------------------------------
+    rate_limit_per_minute: int = Field(
+        default=120,
+        gt=0,
+        description="Requests allowed per API key per minute, refilled continuously.",
+    )
+    rate_limit_burst: int | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Largest burst a key may spend at once. Defaults to the per-minute rate, "
+            "which lets a caller flush a backlog without averaging above the limit."
+        ),
+    )
+    bootstrap_api_key: str | None = Field(
+        default=None,
+        description=(
+            "If set, an API key with every scope is created at startup with this token. "
+            "For development and for the first key in a new deployment. Refused in production, "
+            "where keys are issued with scripts/create-api-key.py instead."
+        ),
+    )
+
     # -- API --------------------------------------------------------------
     api_prefix: str = Field(default="/api/v1", description="Prefix for versioned routes.")
 
@@ -135,6 +158,22 @@ class Settings(BaseSettings):
         if self.is_production and not self.sample_encryption_key:
             raise ValueError(
                 "UPA_SAMPLE_ENCRYPTION_KEY must be set when UPA_ENVIRONMENT=production."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _refuse_bootstrap_key_in_production(self) -> Settings:
+        """A credential in an environment variable is not a production credential.
+
+        It appears in process listings, in orchestrator manifests and in shell
+        history, and it is the same value on every instance. Convenient in
+        development, and exactly the kind of shortcut that survives into
+        production if nothing refuses it.
+        """
+        if self.is_production and self.bootstrap_api_key:
+            raise ValueError(
+                "UPA_BOOTSTRAP_API_KEY must not be set when UPA_ENVIRONMENT=production. "
+                "Issue keys with scripts/create-api-key.py instead."
             )
         return self
 

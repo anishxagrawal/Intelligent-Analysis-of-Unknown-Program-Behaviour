@@ -73,13 +73,22 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
-        return problem_response(
+        response = problem_response(
             status_code=exc.status_code,
             title=exc.title,
             detail=exc.detail,
             code=exc.code,
             request=request,
         )
+
+        # Rate limiting is the one refusal that comes with advice. Telling a
+        # caller exactly how long to wait is what turns a retry storm back into
+        # a well-behaved client.
+        retry_after = getattr(exc, "retry_after", None)
+        if retry_after is not None:
+            response.headers["Retry-After"] = str(retry_after)
+
+        return response
 
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_exception(

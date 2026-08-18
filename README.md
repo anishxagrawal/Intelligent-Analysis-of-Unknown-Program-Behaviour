@@ -2,7 +2,7 @@
 
 A system that takes a program nobody has seen before and works out what it does — by running it in a sealed environment, recording everything it touches, deciding whether that behaviour is dangerous, and explaining the decision with the evidence attached.
 
-**Current state: v3 — job lifecycle and queue.** Files are streamed, hashed, deduplicated and stored encrypted at rest, and the jobs made from them can be claimed by workers exactly once, leased, and recovered when a worker dies. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
+**Current state: v4 — identification and access.** Files are streamed, hashed, deduplicated and stored encrypted at rest; jobs are claimed by workers exactly once and recovered when a worker dies; the container format is identified from magic bytes, and every call needs a scoped API key and is audited. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
 
 ---
 
@@ -129,6 +129,30 @@ no analysis and records no run outcome — that belongs to Stage 2, which does n
 exist yet. A job left running is recovered when its lease expires, which is the
 correct treatment of work that was accepted and never done.
 
+### API keys
+
+Every endpoint except `/healthz` and `/readyz` requires a key in the `X-API-Key`
+header. Keys carry scopes, and a key holding the wrong one gets a 403 rather
+than a 401 — the caller is known, just not allowed.
+
+| Scope | Grants |
+|---|---|
+| `submissions:write` | Submit files |
+| `jobs:read` | Read job and sample records |
+| `samples:download` | Retrieve stored sample bytes |
+
+Issue one:
+
+```bash
+python scripts/create-api-key.py --name ingest --scope submissions:write
+```
+
+The token is printed once and stored only as a hash. If it is lost, issue
+another — it cannot be looked up, including by whoever runs the database.
+
+For local development, set `UPA_BOOTSTRAP_API_KEY` in `.env` and a key with
+every scope is created at startup. Production refuses to start with it set.
+
 ---
 
 ## Running the tests
@@ -183,6 +207,9 @@ Every setting is read from the environment using the `UPA_` prefix, with default
 | `UPA_JOB_MAX_ATTEMPTS` | `3` | Hand-outs before a job is cancelled |
 | `UPA_REAPER_INTERVAL_SECONDS` | `30` | How often lapsed leases are swept |
 | `UPA_WORKER_POLL_SECONDS` | `2` | Worker wait when the queue is empty |
+| `UPA_RATE_LIMIT_PER_MINUTE` | `120` | Requests per API key per minute |
+| `UPA_RATE_LIMIT_BURST` | _rate_ | Largest burst a key may spend at once |
+| `UPA_BOOTSTRAP_API_KEY` | _unset_ | Development key created at startup. Refused in production |
 | `UPA_API_PREFIX` | `/api/v1` | Prefix for versioned routes |
 
 ---

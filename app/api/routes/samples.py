@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_session
 from app.api.errors import AppError
 from app.domain.schemas import SampleRead
+from app.security.auth import Caller, require_scope
+from app.security.scopes import Scope
 from app.services.intake import find_sample
 
 router = APIRouter(prefix="/samples", tags=["samples"])
@@ -29,6 +31,7 @@ class SampleRecordNotFoundError(AppError):
 async def read_sample(
     sha256: str,
     session: AsyncSession = Depends(get_session),
+    caller: Caller = Depends(require_scope(Scope.JOBS_READ)),
 ) -> SampleRead:
     """Return the stored record for a content hash."""
     sample = await find_sample(session, sha256.lower())

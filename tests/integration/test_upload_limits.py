@@ -20,15 +20,20 @@ def small_limit_settings(settings):  # type: ignore[no-untyped-def]
 
 
 @pytest.fixture
-async def small_limit_client(small_limit_settings):  # type: ignore[no-untyped-def]
+async def small_limit_client(small_limit_settings, clean_database):  # type: ignore[no-untyped-def]
     from httpx import ASGITransport, AsyncClient
 
     from app.main import create_app
+    from tests.conftest import TEST_API_KEY
 
     application = create_app(small_limit_settings)
     async with application.router.lifespan_context(application):
         transport = ASGITransport(app=application)
-        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+            headers={"X-API-Key": TEST_API_KEY},
+        ) as client:
             yield client
 
 
