@@ -79,6 +79,35 @@ class Settings(BaseSettings):
         description="Largest accepted upload. Enforced while streaming, never after.",
     )
 
+    # -- Job queue --------------------------------------------------------
+    job_lease_seconds: int = Field(
+        default=300,
+        gt=0,
+        description=(
+            "How long a worker owns a claimed job before the lease lapses. "
+            "Must comfortably exceed the heartbeat interval, or healthy workers "
+            "lose jobs they are still working on."
+        ),
+    )
+    job_max_attempts: int = Field(
+        default=3,
+        gt=0,
+        description=(
+            "How many times a job may be handed out before it is cancelled. "
+            "Without a limit, a job that kills every worker it touches is retried forever."
+        ),
+    )
+    reaper_interval_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        description="How often the reaper looks for lapsed leases.",
+    )
+    worker_poll_seconds: float = Field(
+        default=2.0,
+        gt=0,
+        description="How long a worker waits before asking for work again when the queue is empty.",
+    )
+
     # -- API --------------------------------------------------------------
     api_prefix: str = Field(default="/api/v1", description="Prefix for versioned routes.")
 

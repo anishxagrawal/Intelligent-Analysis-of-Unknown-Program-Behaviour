@@ -2,7 +2,7 @@
 
 A system that takes a program nobody has seen before and works out what it does — by running it in a sealed environment, recording everything it touches, deciding whether that behaviour is dangerous, and explaining the decision with the evidence attached.
 
-**Current state: v2 — safe intake.** Files are streamed, hashed, deduplicated and stored encrypted at rest. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
+**Current state: v3 — job lifecycle and queue.** Files are streamed, hashed, deduplicated and stored encrypted at rest, and the jobs made from them can be claimed by workers exactly once, leased, and recovered when a worker dies. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
 
 ---
 
@@ -81,21 +81,53 @@ cp .env.example .env
 
 `.env` is gitignored and is the only place a password should ever appear.
 
-### Schema changes during development
+### Schema
 
-Until v3 introduces Alembic migrations, tables are created at startup with
-SQLAlchemy's `create_all`, which only creates tables that do not yet exist and
-never alters an existing one. When a model changes shape, an existing
-development database keeps the old columns and inserts start failing.
+The schema is managed by Alembic. Nothing is created at startup, so bring the
+database up to date before running the application for the first time and after
+pulling any change that touches a model:
 
-Reset it with:
+```bash
+alembic upgrade head
+```
+
+v1 and v2 created tables at startup with SQLAlchemy's `create_all`. That was
+replaced in v3 because `create_all` creates missing tables and ignores existing
+ones entirely — a column added in code never reaches a database that already has
+that table, quietly, with no error, until something reads it in production.
+
+Tests build their own throwaway database and migrate it on every run, so a
+migration that disagrees with the models fails the suite immediately.
+
+If a development database ever does get into a state migrations cannot fix, drop
+everything and start again:
 
 ```bash
 psql -U upa -d upa_dev -f scripts/reset-dev-db.sql
 ```
 
-This destroys all development data. Tests are unaffected — each run builds a
-throwaway database from scratch.
+This destroys all development data.
+
+---
+
+## Running
+
+The API:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+A worker, in a second terminal:
+
+```bash
+python -m worker
+```
+
+The worker claims queued jobs, leases them, and marks them running. It performs
+no analysis and records no run outcome — that belongs to Stage 2, which does not
+exist yet. A job left running is recovered when its lease expires, which is the
+correct treatment of work that was accepted and never done.
 
 ---
 
@@ -147,6 +179,10 @@ Every setting is read from the environment using the `UPA_` prefix, with default
 | `UPA_SAMPLE_ENCRYPTION_KEY` | _unset_ | Base64 32-byte key. Required in production |
 | `UPA_SAMPLE_ENCRYPTION_KEY_ID` | `dev` | Recorded per object so keys can rotate |
 | `UPA_MAX_UPLOAD_BYTES` | `104857600` | Largest accepted upload |
+| `UPA_JOB_LEASE_SECONDS` | `300` | How long a worker owns a claimed job |
+| `UPA_JOB_MAX_ATTEMPTS` | `3` | Hand-outs before a job is cancelled |
+| `UPA_REAPER_INTERVAL_SECONDS` | `30` | How often lapsed leases are swept |
+| `UPA_WORKER_POLL_SECONDS` | `2` | Worker wait when the queue is empty |
 | `UPA_API_PREFIX` | `/api/v1` | Prefix for versioned routes |
 
 ---
@@ -154,6 +190,7 @@ Every setting is read from the environment using the `UPA_` prefix, with default
 ## Project layout
 
 ```
+alembic/          schema migrations, applied with `alembic upgrade head`
 app/
   config.py       settings from environment
   logging.py      structured JSON logs with request-id correlation

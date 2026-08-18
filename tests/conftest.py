@@ -1,9 +1,14 @@
 """Shared test fixtures.
 
 Database strategy: one throwaway database per test session, created on the
-server named by the settings and dropped afterwards. Tables are truncated
-between tests. A throwaway database means a crashed run cannot poison the next
-one, and it means the suite never touches development data.
+server named by the settings, migrated to head, and dropped afterwards. Tables
+are truncated between tests. A throwaway database means a crashed run cannot
+poison the next one, and it means the suite never touches development data.
+
+The schema comes from Alembic, not from ``create_all``. That is deliberate: it
+means the migrations are exercised by every single test run, so a migration that
+disagrees with the models is caught immediately rather than on the day someone
+deploys.
 
 Tests that need a database fail loudly when none is reachable rather than
 skipping. A silently skipped test in a suite whose green result defines "done"
@@ -22,9 +27,16 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.config import Settings, get_settings
+from app.db.migrations import upgrade_database
+from app.db.session import create_engine, create_sessionmaker
 
 SETUP_HINT = (
     "Could not reach PostgreSQL at {url}.\n"
@@ -70,7 +82,9 @@ async def test_database_url(base_settings: Settings) -> AsyncIterator[str]:
     try:
         # render_as_string(hide_password=False) is required: str(URL) masks the
         # password as "***", which produces a URL that cannot authenticate.
-        yield admin_url.set(database=db_name).render_as_string(hide_password=False)
+        url = admin_url.set(database=db_name).render_as_string(hide_password=False)
+        await upgrade_database(url)
+        yield url
     finally:
         async with admin_engine.connect() as conn:
             # Terminate stragglers so DROP cannot block on a lingering session.
@@ -112,7 +126,7 @@ async def app(settings: Settings) -> AsyncIterator[FastAPI]:
 
     application = create_app(settings)
     async with application.router.lifespan_context(application):
-        await _truncate_all_tables(application)
+        await truncate_all_tables(application.state.engine)
         yield application
 
 
@@ -124,12 +138,49 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
         yield http_client
 
 
-async def _truncate_all_tables(application: FastAPI) -> None:
+@pytest_asyncio.fixture
+async def engine(settings: Settings) -> AsyncIterator[AsyncEngine]:
+    """An engine on the throwaway database, for tests that do not need the API.
+
+    Separate from the ``app`` fixture on purpose. The queue is exercised
+    directly by workers and the reaper, neither of which goes anywhere near
+    HTTP, and testing it through the API would only obscure what is being
+    tested.
+    """
+    db_engine = create_engine(settings)
+    await truncate_all_tables(db_engine)
+    try:
+        yield db_engine
+    finally:
+        await db_engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    """A session factory on the throwaway database.
+
+    Handed out as a factory rather than a session because the concurrency tests
+    need several sessions at once - one shared session would serialise the very
+    contention they exist to create.
+    """
+    return create_sessionmaker(engine)
+
+
+@pytest_asyncio.fixture
+async def session(
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
+    """One session for tests that only need one."""
+    async with sessionmaker() as db_session:
+        yield db_session
+
+
+async def truncate_all_tables(engine: AsyncEngine) -> None:
     """Empty every table so each test starts from a known state.
 
     Truncation is far simpler than savepoint-based rollback and fast enough at
-    this scale. RESTART IDENTITY resets sequences; CASCADE handles foreign keys
-    once later versions add them.
+    this scale. RESTART IDENTITY resets sequences; CASCADE handles the foreign
+    key from jobs to samples.
     """
     from app.db.base import Base
 
@@ -137,6 +188,5 @@ async def _truncate_all_tables(application: FastAPI) -> None:
     if not table_names:
         return
 
-    engine = application.state.engine
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))

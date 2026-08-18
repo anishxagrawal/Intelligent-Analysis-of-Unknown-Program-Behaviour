@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.domain.enums import JobStatus
 from app.domain.models import Job, Sample
 
 pytestmark = pytest.mark.unit
@@ -15,7 +16,8 @@ pytestmark = pytest.mark.unit
 def test_job_column_defaults_are_declared() -> None:
     """Defaults live on the column, so they apply at flush time."""
     assert Job.__table__.c.id.default is not None
-    assert Job.__table__.c.status.default.arg == "queued"
+    assert Job.__table__.c.status.default.arg is JobStatus.QUEUED
+    assert Job.__table__.c.attempts.default.arg == 0
 
 
 def test_created_at_default_is_timezone_aware_utc() -> None:
@@ -36,7 +38,7 @@ def test_id_default_generates_unique_uuids() -> None:
 
 
 def test_job_repr_is_useful_in_logs() -> None:
-    job = Job(id=uuid.uuid4(), status="queued", original_filename="a.bin")
+    job = Job(id=uuid.uuid4(), status=JobStatus.QUEUED, original_filename="a.bin")
 
     assert "a.bin" in repr(job)
     assert "queued" in repr(job)

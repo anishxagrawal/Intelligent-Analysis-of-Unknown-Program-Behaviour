@@ -103,13 +103,52 @@ request may fail on the primary key. v5 (AC-25).
 
 ## v3 — Job Lifecycle and Queue
 
-| ID | Requirement | Status |
-|---|---|---|
-| AC-13 | New job is `queued`; all five run outcomes exist in enum and schema | pending |
-| AC-14 | Illegal state transition raises and does not persist | pending |
-| AC-15 | Two concurrent workers cannot claim the same job | pending |
-| AC-16 | An expired lease returns the job to the queue | pending |
-| AC-22 | Queue contract suite passes against database and in-memory backends | pending |
+| ID | Requirement | Test | Status |
+|---|---|---|---|
+| AC-13 | New job is `queued`; all five run outcomes exist in enum and schema | `tests/acceptance/test_v3_criteria.py` | done |
+| AC-14 | Illegal state transition raises and does not persist | `tests/acceptance/test_v3_criteria.py` | done |
+| AC-15 | Two concurrent workers cannot claim the same job | `tests/acceptance/test_v3_criteria.py` | done |
+| AC-16 | An expired lease returns the job to the queue | `tests/acceptance/test_v3_criteria.py` | done |
+| AC-22 | Queue contract suite passes against database and in-memory backends | `tests/contract/test_job_queue.py` | done |
+
+### Resolved in v3
+
+**Schema changes are no longer silent.** `create_all` has been replaced by
+Alembic. It created missing tables and ignored existing ones, so a column added
+to a model never reached a database that already had that table. Every test run
+now migrates a throwaway database from scratch, which means a migration that
+disagrees with the models fails the suite rather than a deployment.
+
+**Work handed to a worker can no longer be lost.** A claim is one statement
+using `SELECT ... FOR UPDATE SKIP LOCKED`, so two workers cannot take the same
+job, and ownership is leased rather than given away, so a worker that dies
+silently has its job returned by the reaper.
+
+### Known limitations remaining after v3
+
+**Nothing runs samples.** The worker claims a job, marks it running, and stops.
+It records no run outcome, deliberately: all five are statements about a run
+that has not happened. Stage 2.
+
+**Jobs cannot be cancelled through the API.** `cancelled` is reachable from the
+domain and from the reaper, but no endpoint exposes it. Stage 8 owns operator
+interaction; until then cancellation is an internal transition only.
+
+**The reaper is not started by the application.** It exists and is tested, but
+nothing runs it on a timer yet. Deployment topology - one process, a sidecar, a
+scheduled task - is a v5 question.
+
+**No file type detection.** Every submission is accepted regardless of content.
+v4 (AC-06, AC-07).
+
+**No authentication.** Any caller can submit, read any job, and read any sample.
+v4 (AC-10 to AC-12).
+
+**Empty uploads are accepted.** A zero-byte file produces a valid sample and
+job. v5 (AC-09).
+
+**Concurrent identical submissions may both insert.** Two requests carrying the
+same new bytes at the same moment can race on the sample row. v5 (AC-25).
 
 ---
 

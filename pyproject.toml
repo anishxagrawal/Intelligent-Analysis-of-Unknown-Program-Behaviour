@@ -75,6 +75,11 @@ ignore = ["B008"]  # FastAPI's Depends() in defaults is idiomatic
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
 
+[tool.ruff.lint.isort]
+# The migrations directory is called "alembic", so import sorting would
+# otherwise take the alembic package for a local module.
+known-third-party = ["alembic"]
+
 # ---------------------------------------------------------------------------
 # Type checking
 # ---------------------------------------------------------------------------

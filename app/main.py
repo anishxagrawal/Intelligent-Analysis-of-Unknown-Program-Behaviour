@@ -16,7 +16,6 @@ from fastapi import FastAPI, Request, Response
 from app.api.errors import register_error_handlers
 from app.api.routes import health, jobs, samples, submissions
 from app.config import Settings, get_settings
-from app.db.base import Base
 from app.db.session import create_engine, create_sessionmaker
 from app.logging import configure_logging, get_logger, set_request_id
 from app.storage.factory import build_storage
@@ -36,12 +35,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_engine(settings)
 
-        # Tables are created directly in v1. Alembic replaces this in v3, at
-        # which point schema changes become migrations rather than a side
-        # effect of starting the process.
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
+        # The schema is not created here. v1 and v2 called
+        # ``Base.metadata.create_all`` at startup; v3 replaces it with Alembic.
+        #
+        # The reason is not tidiness. ``create_all`` creates missing tables and
+        # ignores existing ones entirely, so a column added in code never
+        # reaches a database that already has that table - quietly, with no
+        # error, until something reads the column in production. Migrations are
+        # an explicit, ordered, reviewable record instead.
+        #
+        # Run `alembic upgrade head` before starting. See README.md.
         settings.storage_root.mkdir(parents=True, exist_ok=True)
 
         app.state.settings = settings

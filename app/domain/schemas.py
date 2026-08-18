@@ -11,6 +11,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from app.domain.enums import JobStatus, RunOutcome
 from app.domain.models import Job, Sample
 
 
@@ -46,14 +47,32 @@ class JobRead(BaseModel):
     Sample digests are flattened onto the job. Callers polling a job want to
     know what was analysed without a second request, and the alternative - a
     nested object - would break every existing consumer of ``size_bytes``.
+
+    ``status`` and ``run_outcome`` are separate fields rather than one merged
+    value, mirroring the domain. A client asking "is this done" and a client
+    asking "what did the run show" are asking different questions, and the
+    second has no answer until the first is ``finished``.
     """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     created_at: datetime
-    status: str
+    status: JobStatus
     original_filename: str
+
+    run_outcome: RunOutcome | None = Field(
+        default=None,
+        description="What the run produced. Null until the job is finished.",
+    )
+    attempts: int = Field(
+        default=0,
+        description="How many times this job has been handed to a worker.",
+    )
+    failure_reason: str | None = Field(
+        default=None,
+        description="Why the job stopped without a run outcome, when that is what happened.",
+    )
 
     sha256: str
     sha1: str
@@ -67,6 +86,9 @@ class JobRead(BaseModel):
             created_at=job.created_at,
             status=job.status,
             original_filename=job.original_filename,
+            run_outcome=job.run_outcome,
+            attempts=job.attempts,
+            failure_reason=job.failure_reason,
             sha256=job.sample.sha256,
             sha1=job.sample.sha1,
             md5=job.sample.md5,
@@ -82,7 +104,7 @@ class SubmissionAccepted(BaseModel):
     """
 
     job_id: uuid.UUID = Field(description="Identifier for polling job status.")
-    status: str = Field(description="Lifecycle state at the moment of acceptance.")
+    status: JobStatus = Field(description="Lifecycle state at the moment of acceptance.")
     sha256: str = Field(description="Content hash of the submitted bytes.")
     duplicate: bool = Field(
         description="True when these exact bytes had already been stored.",

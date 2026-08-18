@@ -14,6 +14,8 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
+from app.queue.base import JobQueue
+from app.queue.database import DatabaseJobQueue
 from app.services.intake import IntakeService
 from app.storage.base import SampleStorage
 
@@ -37,14 +39,25 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         yield session
 
 
+def get_queue(session: AsyncSession = Depends(get_session)) -> JobQueue:
+    """Return a job queue bound to this request's session.
+
+    Bound to the session on purpose: enqueueing has to commit with the sample
+    row it depends on, not separately from it.
+    """
+    return DatabaseJobQueue(session)
+
+
 def get_intake_service(
     session: AsyncSession = Depends(get_session),
     storage: SampleStorage = Depends(get_storage),
+    queue: JobQueue = Depends(get_queue),
     settings: Settings = Depends(get_settings_dep),
 ) -> IntakeService:
     """Assemble the intake service for one request."""
     return IntakeService(
         session=session,
         storage=storage,
+        queue=queue,
         max_upload_bytes=settings.max_upload_bytes,
     )

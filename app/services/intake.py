@@ -21,6 +21,7 @@ from app.api.errors import AppError
 from app.domain.hashing import ContentHashes, StreamHasher
 from app.domain.models import Job, Sample
 from app.logging import get_logger
+from app.queue.base import JobQueue
 from app.storage.base import SampleStorage
 
 logger = get_logger(__name__)
@@ -52,10 +53,12 @@ class IntakeService:
         self,
         session: AsyncSession,
         storage: SampleStorage,
+        queue: JobQueue,
         max_upload_bytes: int,
     ) -> None:
         self._session = session
         self._storage = storage
+        self._queue = queue
         self._max_upload_bytes = max_upload_bytes
 
     async def submit(self, upload: UploadFile) -> IntakeResult:
@@ -116,7 +119,11 @@ class IntakeService:
             self._session.add(sample)
 
         job = Job(original_filename=filename, sample_sha256=hashes.sha256)
-        self._session.add(job)
+
+        # Enqueueing joins this transaction rather than opening its own, so the
+        # job becomes claimable at the same instant its sample row becomes
+        # readable. A worker cannot see work whose input does not yet exist.
+        await self._queue.enqueue(job)
 
         # Ordering note.
         #
