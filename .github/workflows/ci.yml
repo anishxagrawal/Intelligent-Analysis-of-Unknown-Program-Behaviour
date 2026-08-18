@@ -9,6 +9,26 @@ jobs:
   check:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: upa
+          POSTGRES_PASSWORD: upa
+          POSTGRES_DB: upa_dev
+        ports:
+          - 5432:5432
+        # The suite creates a throwaway database per run, so the service must be
+        # accepting connections before tests start.
+        options: >-
+          --health-cmd "pg_isready -U upa"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      UPA_DATABASE_URL: postgresql+asyncpg://upa:upa@localhost:5432/upa_dev
+
     steps:
       - uses: actions/checkout@v4
 
@@ -30,3 +50,6 @@ jobs:
 
       - name: Test
         run: python -m pytest -v
+
+      - name: Acceptance criteria
+        run: python -m pytest -m acceptance -v

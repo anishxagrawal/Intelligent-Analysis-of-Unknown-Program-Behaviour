@@ -28,11 +28,34 @@ Legend: **done** — implemented and green · **pending** — not yet built.
 
 | ID | Requirement | Test | Status |
 |---|---|---|---|
-| AC-01 | A valid submission returns 202 with a job id | `tests/acceptance/test_ac01.py` | pending |
-| AC-V1a | The job is retrievable and its fields match what was submitted | `tests/integration/test_submission_flow.py` | pending |
-| AC-V1b | An unknown job id returns 404 as `application/problem+json` | `tests/integration/test_errors.py` | pending |
-| AC-V1c | `/healthz` returns 200 | `tests/integration/test_health.py` | pending |
-| AC-V1d | Every response carries a request id header | `tests/integration/test_health.py` | pending |
+| AC-01 | A valid submission returns 202 with a job id | `tests/acceptance/test_ac01.py` | done |
+| AC-V1a | The job is retrievable and its fields match what was submitted | `tests/acceptance/test_v1_criteria.py` | done |
+| AC-V1b | An unknown job id returns 404 as `application/problem+json` | `tests/acceptance/test_v1_criteria.py` | done |
+| AC-V1c | `/healthz` returns 200 | `tests/acceptance/test_v1_criteria.py` | done |
+| AC-V1d | Every response carries a request id header | `tests/acceptance/test_v1_criteria.py` | done |
+| AC-V1e | A traversal filename writes nothing outside the storage root | `tests/acceptance/test_v1_criteria.py` | done |
+
+### Known limitations accepted in v1
+
+These are deliberate. Recording them is the point: a documented weakness is
+engineering, a silent one is a bug waiting for someone else to find.
+
+**Orphaned files on commit failure.** The submission route writes the file
+before committing the job row. If the write succeeds and the commit then fails,
+an unreferenced file is left in storage and nothing cleans it up.
+
+The alternative ordering is worse: committing first would allow a job row
+pointing at a file that does not exist, which every later reader would have to
+defend against. An unreferenced file is inert.
+
+v1 deliberately introduces no transaction manager, outbox, compensating delete
+or background reaper. The question belongs with the storage boundary in v2.
+
+**No size limit is enforced.** `UPA_MAX_UPLOAD_BYTES` is configured but unused
+until v5 (AC-08). v1 will accept an upload of any size.
+
+**No content inspection.** No hashing, deduplication, encryption or file type
+detection. v2 and v4 cover these.
 
 ---
 

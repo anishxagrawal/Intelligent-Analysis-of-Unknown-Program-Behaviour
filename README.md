@@ -2,7 +2,7 @@
 
 A system that takes a program nobody has seen before and works out what it does — by running it in a sealed environment, recording everything it touches, deciding whether that behaviour is dangerous, and explaining the decision with the evidence attached.
 
-**Current state: v0 — project setup.** No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
+**Current state: v1 — walking skeleton.** A file can be submitted and its job fetched back. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
 
 ---
 

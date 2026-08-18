@@ -1,9 +1,15 @@
 # v1 — Walking Skeleton (PostgreSQL)
 
-> **Status:** approved, in progress. Checkpoint 0 complete.
-> Roadmap-level summary lives in [`VERSIONS.md`](../../VERSIONS.md); this file
-> holds the checkpoint-by-checkpoint detail and the reasoning behind decisions
-> that would otherwise be lost.
+> **Status: complete.** All four checkpoints green. 52 tests pass, ruff and
+> mypy clean, six acceptance criteria met. Roadmap-level summary lives in
+> [`VERSIONS.md`](../../VERSIONS.md); known limitations accepted in v1 are
+> recorded in [`ACCEPTANCE.md`](../../ACCEPTANCE.md).
+>
+> **Two findings worth keeping.** `str(sqlalchemy.URL)` masks the password as
+> `***`, so building a connection URL that way silently fails to authenticate;
+> use `render_as_string(hide_password=False)`. And `python-multipart` reduces a
+> Windows absolute filename to its base name before the application sees it,
+> while leaving relative traversal sequences untouched.
 
 
 ## Context
