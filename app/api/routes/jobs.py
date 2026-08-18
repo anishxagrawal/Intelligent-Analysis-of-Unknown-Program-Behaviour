@@ -23,9 +23,9 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 async def read_job(
     job_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-) -> Job:
+) -> JobRead:
     """Return a single job, or a problem-details 404 if it does not exist."""
     job = await session.get(Job, job_id)
     if job is None:
         raise JobNotFoundError(f"No job with id {job_id}.")
-    return job
+    return JobRead.from_job(job)

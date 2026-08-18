@@ -61,13 +61,43 @@ detection. v2 and v4 cover these.
 
 ## v2 — Safe Intake
 
-| ID | Requirement | Status |
-|---|---|---|
-| AC-02 | Sample stored under its content hash; filename never used as a path | pending |
-| AC-03 | Bytes on disk are encrypted — plaintext absent from the stored object | pending |
-| AC-04 | SHA-256, SHA-1 and MD5 match known test vectors | pending |
-| AC-05 | Duplicate bytes reuse the sample row, create a new job, flag the duplicate | pending |
-| AC-21 | Storage contract suite passes against local and in-memory backends | pending |
+| ID | Requirement | Test | Status |
+|---|---|---|---|
+| AC-02 | Sample stored under its content hash; filename never used as a path | `tests/acceptance/test_v2_criteria.py` | done |
+| AC-03 | Bytes on disk are encrypted — plaintext absent from the stored object | `tests/acceptance/test_v2_criteria.py` | done |
+| AC-04 | SHA-256, SHA-1 and MD5 match known test vectors | `tests/acceptance/test_v2_criteria.py` | done |
+| AC-05 | Duplicate bytes reuse the sample row, create a new job, flag the duplicate | `tests/acceptance/test_v2_criteria.py` | done |
+| AC-21 | Storage contract suite passes against local and in-memory backends | `tests/contract/test_sample_storage.py` | done |
+
+### Resolved in v2
+
+**The orphaned-file limitation from v1 is now benign.** Objects are keyed by
+their own content hash, so an object left behind by a failed commit is adopted
+by the next submission of those bytes rather than duplicated. It is inert and
+self-healing. The ordering is unchanged and still deliberate: storing before
+committing is safer than the reverse, because a committed row pointing at
+content that was never stored is a lie every later reader must defend against.
+
+**The size cap is enforced during the stream**, not after, so an oversize
+upload cannot make the service consume unbounded disk before being refused.
+AC-08 formally covers this in v5; the mechanism landed here because it belongs
+in the streaming path.
+
+### Known limitations remaining after v2
+
+**No file type detection.** Every submission is accepted regardless of content.
+v4 (AC-06, AC-07).
+
+**No authentication.** Any caller can submit, read any job, and read any sample.
+v4 (AC-10 to AC-12).
+
+**Empty uploads are accepted.** A zero-byte file produces a valid sample and
+job. v5 (AC-09).
+
+**Concurrent identical submissions may both insert.** Two requests carrying the
+same new bytes at the same moment can race on the sample row. The storage layer
+is unaffected — content addressing makes the double write harmless — but one
+request may fail on the primary key. v5 (AC-25).
 
 ---
 

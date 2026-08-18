@@ -31,15 +31,17 @@ async def test_traversal_filename_writes_nothing_outside_storage_root(  # type: 
     )
 
     assert response.status_code == 202
-    job_id = response.json()["job_id"]
+    sha256 = response.json()["sha256"]
 
     root = settings.storage_root.resolve()
     written = [path for path in root.rglob("*") if path.is_file()]
 
-    # Exactly one file, directly in the root, named by job id.
+    # Exactly one object, named by content hash, somewhere beneath the root.
+    # Since v2 the backend fans out into subdirectories, so the file is nested -
+    # what matters is that it never escapes.
     assert len(written) == 1
-    assert written[0].resolve().parent == root
-    assert written[0].name == job_id
+    assert written[0].name == sha256
+    assert root in written[0].resolve().parents
 
 
 # The multipart parser normalises some names before the application sees them.

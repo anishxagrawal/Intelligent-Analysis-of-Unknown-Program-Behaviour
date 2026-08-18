@@ -2,7 +2,7 @@
 
 A system that takes a program nobody has seen before and works out what it does — by running it in a sealed environment, recording everything it touches, deciding whether that behaviour is dangerous, and explaining the decision with the evidence attached.
 
-**Current state: v1 — walking skeleton.** A file can be submitted and its job fetched back. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
+**Current state: v2 — safe intake.** Files are streamed, hashed, deduplicated and stored encrypted at rest. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
 
 ---
 
@@ -81,6 +81,22 @@ cp .env.example .env
 
 `.env` is gitignored and is the only place a password should ever appear.
 
+### Schema changes during development
+
+Until v3 introduces Alembic migrations, tables are created at startup with
+SQLAlchemy's `create_all`, which only creates tables that do not yet exist and
+never alters an existing one. When a model changes shape, an existing
+development database keeps the old columns and inserts start failing.
+
+Reset it with:
+
+```bash
+psql -U upa -d upa_dev -f scripts/reset-dev-db.sql
+```
+
+This destroys all development data. Tests are unaffected — each run builds a
+throwaway database from scratch.
+
 ---
 
 ## Running the tests
@@ -127,6 +143,9 @@ Every setting is read from the environment using the `UPA_` prefix, with default
 | `UPA_LOG_LEVEL` | `INFO` | Root log level |
 | `UPA_DATABASE_URL` | `postgresql+asyncpg://upa:upa@localhost:5432/upa_dev` | SQLAlchemy async URL |
 | `UPA_STORAGE_ROOT` | `var/samples` | Where stored samples live |
+| `UPA_STORAGE_BACKEND` | `local` | `local` or `memory` (tests only) |
+| `UPA_SAMPLE_ENCRYPTION_KEY` | _unset_ | Base64 32-byte key. Required in production |
+| `UPA_SAMPLE_ENCRYPTION_KEY_ID` | `dev` | Recorded per object so keys can rotate |
 | `UPA_MAX_UPLOAD_BYTES` | `104857600` | Largest accepted upload |
 | `UPA_API_PREFIX` | `/api/v1` | Prefix for versioned routes |
 

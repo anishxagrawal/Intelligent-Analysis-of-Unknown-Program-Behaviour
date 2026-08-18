@@ -1,18 +1,21 @@
 """Shared FastAPI dependencies.
 
-Settings and the session factory are read from application state rather than
-from the cached module-level accessor. That is what lets the test suite build an
-application around a throwaway database without mutating process-wide state.
+Settings, the session factory and the storage backend are read from application
+state rather than from module-level globals. That is what lets the test suite
+build an application around a throwaway database and a temporary storage root
+without mutating anything process-wide.
 """
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from fastapi import Request
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
+from app.services.intake import IntakeService
+from app.storage.base import SampleStorage
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -21,8 +24,27 @@ def get_settings_dep(request: Request) -> Settings:
     return settings
 
 
+def get_storage(request: Request) -> SampleStorage:
+    """Return the configured storage backend."""
+    storage: SampleStorage = request.app.state.storage
+    return storage
+
+
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Yield a database session for the duration of one request."""
     sessionmaker = request.app.state.sessionmaker
     async with sessionmaker() as session:
         yield session
+
+
+def get_intake_service(
+    session: AsyncSession = Depends(get_session),
+    storage: SampleStorage = Depends(get_storage),
+    settings: Settings = Depends(get_settings_dep),
+) -> IntakeService:
+    """Assemble the intake service for one request."""
+    return IntakeService(
+        session=session,
+        storage=storage,
+        max_upload_bytes=settings.max_upload_bytes,
+    )

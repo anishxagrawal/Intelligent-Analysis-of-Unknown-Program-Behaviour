@@ -25,6 +25,8 @@ def test_defaults_are_sensible() -> None:
 
 def test_environment_variables_override_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("UPA_ENVIRONMENT", "production")
+    # Production refuses to start without a real key, so one is supplied here.
+    monkeypatch.setenv("UPA_SAMPLE_ENCRYPTION_KEY", "A" * 43 + "=")
     monkeypatch.setenv("UPA_LOG_LEVEL", "warning")
     monkeypatch.setenv("UPA_MAX_UPLOAD_BYTES", "2048")
     monkeypatch.setenv("UPA_STORAGE_ROOT", "somewhere/else")
@@ -50,3 +52,19 @@ def test_max_upload_bytes_must_be_positive() -> None:
 
 def test_get_settings_is_cached() -> None:
     assert get_settings() is get_settings()
+
+
+def test_production_requires_an_encryption_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The development fallback key is public, so production must not use it."""
+    monkeypatch.setenv("UPA_ENVIRONMENT", "production")
+    monkeypatch.delenv("UPA_SAMPLE_ENCRYPTION_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="UPA_SAMPLE_ENCRYPTION_KEY must be set"):
+        Settings(_env_file=None)  # type: ignore[call-arg]
+
+
+def test_development_does_not_require_an_encryption_key() -> None:
+    settings = Settings(_env_file=None, environment="development")  # type: ignore[call-arg]
+
+    assert settings.sample_encryption_key is None
+    assert settings.storage_backend == "local"

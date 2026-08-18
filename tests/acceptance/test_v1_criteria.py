@@ -50,7 +50,7 @@ async def test_ac_v1d_every_response_carries_a_request_id(client, sample_bytes) 
 async def test_ac_v1e_traversal_filename_stays_inside_storage_root(  # type: ignore[no-untyped-def]
     client, sample_bytes, settings
 ) -> None:
-    await client.post(
+    response = await client.post(
         "/api/v1/submissions",
         files={"file": ("../../../escaped.txt", sample_bytes, "application/octet-stream")},
     )
@@ -59,5 +59,6 @@ async def test_ac_v1e_traversal_filename_stays_inside_storage_root(  # type: ign
     written = [path for path in root.rglob("*") if path.is_file()]
 
     assert len(written) == 1
-    assert written[0].resolve().parent == root
+    assert root in written[0].resolve().parents
+    assert written[0].name == response.json()["sha256"]
     assert not (root.parent / "escaped.txt").exists()

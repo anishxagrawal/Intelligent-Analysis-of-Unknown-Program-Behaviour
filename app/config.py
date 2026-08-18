@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _MEGABYTE = 1024 * 1024
@@ -51,9 +52,24 @@ class Settings(BaseSettings):
     )
 
     # -- Storage ----------------------------------------------------------
+    storage_backend: Literal["local", "memory"] = Field(
+        default="local",
+        description="Where samples are kept. 'memory' is for tests only.",
+    )
     storage_root: Path = Field(
         default=Path("var/samples"),
-        description="Directory holding stored samples.",
+        description="Directory holding stored samples when using the local backend.",
+    )
+    sample_encryption_key: str | None = Field(
+        default=None,
+        description=(
+            "Base64-encoded 32-byte key used to encrypt stored samples. "
+            "Required in production; a fixed development key is used otherwise."
+        ),
+    )
+    sample_encryption_key_id: str = Field(
+        default="dev",
+        description="Identifier recorded with each encrypted object, so keys can rotate.",
     )
 
     # -- Intake limits ----------------------------------------------------
@@ -78,6 +94,20 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
+
+    @model_validator(mode="after")
+    def _require_encryption_key_in_production(self) -> Settings:
+        """Refuse to start in production without a real key.
+
+        The development fallback is derived from a constant in the source, so it
+        is public knowledge. Falling back to it in production would mean samples
+        that look encrypted but are readable by anyone with the repository.
+        """
+        if self.is_production and not self.sample_encryption_key:
+            raise ValueError(
+                "UPA_SAMPLE_ENCRYPTION_KEY must be set when UPA_ENVIRONMENT=production."
+            )
+        return self
 
 
 @lru_cache(maxsize=1)

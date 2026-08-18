@@ -14,11 +14,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 
 from app.api.errors import register_error_handlers
-from app.api.routes import health, jobs, submissions
+from app.api.routes import health, jobs, samples, submissions
 from app.config import Settings, get_settings
 from app.db.base import Base
 from app.db.session import create_engine, create_sessionmaker
 from app.logging import configure_logging, get_logger, set_request_id
+from app.storage.factory import build_storage
 from app.version import APP_VERSION
 
 logger = get_logger(__name__)
@@ -46,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.settings = settings
         app.state.engine = engine
         app.state.sessionmaker = create_sessionmaker(engine)
+        app.state.storage = build_storage(settings)
 
         logger.info("application started", extra={"environment": settings.environment})
         try:
@@ -84,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(jobs.router, prefix=settings.api_prefix)
+    app.include_router(samples.router, prefix=settings.api_prefix)
     app.include_router(submissions.router, prefix=settings.api_prefix)
 
     return app

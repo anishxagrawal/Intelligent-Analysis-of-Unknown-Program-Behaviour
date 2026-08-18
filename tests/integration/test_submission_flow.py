@@ -53,17 +53,24 @@ async def test_job_is_retrievable_and_fields_match(client, sample_bytes) -> None
     assert job["created_at"]
 
 
-async def test_bytes_are_stored_under_the_job_id(client, sample_bytes, settings) -> None:  # type: ignore[no-untyped-def]
-    """The submitted filename must never become a path on disk."""
+async def test_bytes_are_stored_under_the_content_hash(client, sample_bytes, settings) -> None:  # type: ignore[no-untyped-def]
+    """The submitted filename must never become a path on disk.
+
+    Since v2 the object is named by its SHA-256 rather than by the job id, and
+    it is encrypted, so the plaintext must not be readable from the file.
+    """
     response = await client.post(
         "/api/v1/submissions",
         files={"file": ("suspicious.exe", sample_bytes, "application/octet-stream")},
     )
-    job_id = response.json()["job_id"]
+    sha256 = response.json()["sha256"]
 
-    stored = settings.storage_root / job_id
-    assert stored.exists()
-    assert stored.read_bytes() == sample_bytes
+    stored = [path for path in settings.storage_root.rglob("*") if path.is_file()]
+    assert len(stored) == 1
+    assert stored[0].name == sha256
+
+    assert stored[0].read_bytes() != sample_bytes
+    assert sample_bytes not in stored[0].read_bytes()
 
     assert not (settings.storage_root / "suspicious.exe").exists()
 
