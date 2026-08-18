@@ -1,0 +1,517 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1860" width="1440" height="1860" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<defs>
+  <marker id="ah" markerWidth="9" markerHeight="9" refX="7.5" refY="3.2" orient="auto">
+    <path d="M0,0 L7.5,3.2 L0,6.4 z" fill="#374151"/>
+  </marker>
+  <marker id="ahs" markerWidth="8" markerHeight="8" refX="6.5" refY="2.8" orient="auto">
+    <path d="M0,0 L6.5,2.8 L0,5.6 z" fill="#6b7280"/>
+  </marker>
+  <style>
+    .t     { font-size:27px; font-weight:700; fill:#111827; }
+    .sub   { font-size:14px; font-weight:600; fill:#6b7280; }
+    .stage { font-size:15px; font-weight:700; }
+    .note  { font-size:10.5px; fill:#6b7280; font-style:italic; }
+    .ct    { font-size:12px; font-weight:700; fill:#111827; }
+    .cb    { font-size:9.8px; fill:#4b5563; }
+    .cbw   { font-size:9.8px; fill:#b91c1c; }
+    .sideh { font-size:14px; font-weight:700; fill:#4338ca; }
+    .bdg   { font-size:8.5px; font-weight:700; fill:#ffffff; }
+    .chip  { font-size:10px; fill:#374151; }
+  </style>
+</defs>
+
+<rect width="1440" height="1860" fill="#ffffff"/>
+
+<text class="t" x="720" y="42" text-anchor="middle">Intelligent Analysis of Unknown Program Behavior</text>
+<text class="sub" x="720" y="68" text-anchor="middle">High Level Flow &#183; revised architecture</text>
+
+<!-- ===================== STAGE 1 ===================== -->
+<rect x="40" y="95" width="960" height="140" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.6"/>
+<text class="stage" x="58" y="121" fill="#1d4ed8">1. Input &amp; Submission</text>
+<text class="note" x="58" y="137">Declare the supported file types up front &#8212; each one needs a different detonation path</text>
+
+<rect x="65" y="145" width="210" height="82" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="170" y="167" text-anchor="middle">Unknown Sample</text>
+<text class="cb" x="170" y="185" text-anchor="middle">EXE &#183; DLL &#183; Script</text>
+<text class="cb" x="170" y="199" text-anchor="middle">Office macro &#183; Installer</text>
+<text class="cb" x="170" y="213" text-anchor="middle">scope stated, not implied</text>
+
+<rect x="295" y="145" width="210" height="82" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="400" y="167" text-anchor="middle">Upload / Submit</text>
+<text class="cb" x="400" y="185" text-anchor="middle">Web UI / API</text>
+<text class="cb" x="400" y="199" text-anchor="middle">authenticated, authorized,</text>
+<text class="cb" x="400" y="213" text-anchor="middle">rate limited, audit logged</text>
+
+<rect x="525" y="145" width="210" height="82" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="630" y="167" text-anchor="middle">Store Sample</text>
+<text class="cb" x="630" y="185" text-anchor="middle">encrypted at rest</text>
+<text class="cb" x="630" y="199" text-anchor="middle">never auto-executed,</text>
+<text class="cb" x="630" y="213" text-anchor="middle">never served inline</text>
+
+<rect x="755" y="145" width="210" height="82" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="860" y="167" text-anchor="middle">Create Analysis Job</text>
+<text class="cb" x="860" y="185" text-anchor="middle">Job ID &#183; queued</text>
+<text class="cb" x="860" y="199" text-anchor="middle">status row written to</text>
+<text class="cb" x="860" y="213" text-anchor="middle">Metadata DB</text>
+
+<line x1="277" y1="186" x2="291" y2="186" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="507" y1="186" x2="521" y2="186" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="737" y1="186" x2="751" y2="186" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+
+<line x1="520" y1="235" x2="520" y2="248" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+
+<!-- ===================== STAGE 2 : STATIC TRIAGE (NEW) ===================== -->
+<rect x="40" y="250" width="960" height="145" rx="10" fill="#ecfeff" stroke="#06b6d4" stroke-width="1.6"/>
+<text class="stage" x="58" y="276" fill="#0e7490">2. Static Triage</text>
+<rect x="196" y="264" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="215" y="275" text-anchor="middle">NEW</text>
+<text class="note" x="58" y="292">Runs before detonation &#8212; cheap, fast, and the only signal you get when a sample refuses to run</text>
+
+<rect x="72" y="300" width="168" height="84" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="156" y="322" text-anchor="middle">Hash &amp; Identify</text>
+<text class="cb" x="156" y="340" text-anchor="middle">SHA-256, imphash,</text>
+<text class="cb" x="156" y="354" text-anchor="middle">ssdeep / TLSH fuzzy</text>
+<text class="cb" x="156" y="368" text-anchor="middle">hashes, file magic</text>
+
+<rect x="254" y="300" width="168" height="84" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="338" y="322" text-anchor="middle">Header &amp; Sections</text>
+<text class="cb" x="338" y="340" text-anchor="middle">PE / ELF parse,</text>
+<text class="cb" x="338" y="354" text-anchor="middle">section entropy,</text>
+<text class="cb" x="338" y="368" text-anchor="middle">overlay, timestamps</text>
+
+<rect x="436" y="300" width="168" height="84" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="520" y="322" text-anchor="middle">Imports &amp; Strings</text>
+<text class="cb" x="520" y="340" text-anchor="middle">API imports, resources,</text>
+<text class="cb" x="520" y="354" text-anchor="middle">embedded objects,</text>
+<text class="cb" x="520" y="368" text-anchor="middle">candidate IOCs</text>
+
+<rect x="618" y="300" width="168" height="84" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="702" y="322" text-anchor="middle">Packer Detection</text>
+<text class="cb" x="702" y="340" text-anchor="middle">packer / crypter /</text>
+<text class="cb" x="702" y="354" text-anchor="middle">obfuscator ID &#8594; picks</text>
+<text class="cb" x="702" y="368" text-anchor="middle">the unpack strategy</text>
+
+<rect x="800" y="300" width="168" height="84" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="884" y="322" text-anchor="middle">Reputation</text>
+<text class="cb" x="884" y="340" text-anchor="middle">code-signing check,</text>
+<text class="cb" x="884" y="354" text-anchor="middle">known-good allowlist,</text>
+<text class="cb" x="884" y="368" text-anchor="middle">intel feed lookup</text>
+
+<line x1="520" y1="395" x2="520" y2="403" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+
+<!-- ===================== STAGE 3 : ORCHESTRATOR (NEW) ===================== -->
+<rect x="40" y="405" width="960" height="128" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text class="stage" x="58" y="431" fill="#334155">3. Detonation Orchestrator</text>
+<rect x="266" y="419" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="285" y="430" text-anchor="middle">NEW</text>
+<text class="note" x="58" y="447">File type and static verdict choose the detonation profile; every run starts from a clean snapshot</text>
+
+<rect x="65" y="455" width="210" height="66" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="170" y="477" text-anchor="middle">Scheduler / Worker Pool</text>
+<text class="cb" x="170" y="495" text-anchor="middle">queued job &#8594; free VM,</text>
+<text class="cb" x="170" y="509" text-anchor="middle">concurrency + retry limits</text>
+
+<rect x="295" y="455" width="210" height="66" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="400" y="477" text-anchor="middle">Restore Clean Snapshot</text>
+<text class="cb" x="400" y="495" text-anchor="middle">known-good baseline so</text>
+<text class="cb" x="400" y="509" text-anchor="middle">runs cannot contaminate</text>
+
+<rect x="525" y="455" width="210" height="66" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="630" y="477" text-anchor="middle">Detonation Profile</text>
+<text class="cb" x="630" y="495" text-anchor="middle">args, privileges, timeout,</text>
+<text class="cb" x="630" y="509" text-anchor="middle">DLL export, interaction script</text>
+
+<rect x="755" y="455" width="210" height="66" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="860" y="477" text-anchor="middle">Destroy After Run</text>
+<text class="cb" x="860" y="495" text-anchor="middle">VM discarded, artifacts and</text>
+<text class="cb" x="860" y="509" text-anchor="middle">telemetry retained</text>
+
+<line x1="277" y1="488" x2="291" y2="488" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="507" y1="488" x2="521" y2="488" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="737" y1="488" x2="751" y2="488" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+
+<line x1="520" y1="533" x2="520" y2="543" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+
+<!-- ===================== STAGE 4 : ANALYSIS ENVIRONMENT ===================== -->
+<rect x="40" y="545" width="960" height="268" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.6"/>
+<text class="stage" x="58" y="568" fill="#15803d">4. Analysis Environment</text>
+
+<rect x="62" y="578" width="660" height="222" rx="9" fill="#ffffff" fill-opacity="0.55" stroke="#15803d" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="74" y="596" font-size="10.5" font-weight="700" fill="#15803d">Isolated Sandbox / VM / Container &#8212; the sensors live INSIDE this boundary</text>
+
+<rect x="78" y="606" width="180" height="62" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="168" y="628" text-anchor="middle">Sample Executing</text>
+<text class="cb" x="168" y="646" text-anchor="middle">launched per the</text>
+<text class="cb" x="168" y="660" text-anchor="middle">detonation profile</text>
+
+<rect x="272" y="606" width="436" height="62" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="490" y="627" text-anchor="middle">Monitoring Layer &#8212; choose one and commit</text>
+<text class="cb" x="490" y="645" text-anchor="middle">Hypervisor introspection (out-of-guest): stealthy, tamper-proof, harder to build</text>
+<text class="cb" x="490" y="659" text-anchor="middle">In-guest agent (API hooks / ETW): high fidelity, but visible to the sample</text>
+
+<text x="74" y="684" font-size="10.5" font-weight="700" fill="#15803d">Monitors / Sensors</text>
+
+<rect x="78" y="690" width="118" height="100" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="137" y="712" text-anchor="middle">Process</text>
+<text class="ct" x="137" y="726" text-anchor="middle">Monitor</text>
+<text class="cb" x="137" y="746" text-anchor="middle">process tree,</text>
+<text class="cb" x="137" y="760" text-anchor="middle">injection,</text>
+<text class="cb" x="137" y="774" text-anchor="middle">child spawns</text>
+
+<rect x="206" y="690" width="118" height="100" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="265" y="712" text-anchor="middle">System Call</text>
+<text class="ct" x="265" y="726" text-anchor="middle">Monitor</text>
+<text class="cb" x="265" y="746" text-anchor="middle">API sequences,</text>
+<text class="cb" x="265" y="760" text-anchor="middle">arguments,</text>
+<text class="cb" x="265" y="774" text-anchor="middle">return values</text>
+
+<rect x="334" y="690" width="118" height="100" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="393" y="712" text-anchor="middle">Network</text>
+<text class="ct" x="393" y="726" text-anchor="middle">Monitor</text>
+<text class="cb" x="393" y="746" text-anchor="middle">DNS, HTTP,</text>
+<text class="cb" x="393" y="760" text-anchor="middle">TLS metadata,</text>
+<text class="cb" x="393" y="774" text-anchor="middle">beacon timing</text>
+
+<rect x="462" y="690" width="118" height="100" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="521" y="712" text-anchor="middle">File System</text>
+<text class="ct" x="521" y="726" text-anchor="middle">Monitor</text>
+<text class="cb" x="521" y="746" text-anchor="middle">writes, drops,</text>
+<text class="cb" x="521" y="760" text-anchor="middle">deletes,</text>
+<text class="cb" x="521" y="774" text-anchor="middle">mass encryption</text>
+
+<rect x="590" y="690" width="118" height="100" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="649" y="712" text-anchor="middle">Registry /</text>
+<text class="ct" x="649" y="726" text-anchor="middle">Config Monitor</text>
+<text class="cb" x="649" y="746" text-anchor="middle">persistence</text>
+<text class="cb" x="649" y="760" text-anchor="middle">keys, services,</text>
+<text class="cb" x="649" y="774" text-anchor="middle">scheduled tasks</text>
+
+<rect x="735" y="580" width="233" height="104" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="851" y="602" text-anchor="middle">Simulated Internet</text>
+<rect x="930" y="588" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="949" y="599" text-anchor="middle">NEW</text>
+<text class="cb" x="851" y="620" text-anchor="middle">fake DNS / HTTP / TLS responders</text>
+<text class="cb" x="851" y="634" text-anchor="middle">(INetSim / FakeNet style)</text>
+<text class="cb" x="851" y="652" text-anchor="middle">The sample believes its C2 is alive,</text>
+<text class="cb" x="851" y="666" text-anchor="middle">so protocol and beaconing show up.</text>
+<text class="cbw" x="851" y="680" text-anchor="middle">Fully blocked egress = silent samples.</text>
+
+<rect x="735" y="694" width="233" height="96" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="851" y="716" text-anchor="middle">Evasion Handling</text>
+<rect x="930" y="702" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="949" y="713" text-anchor="middle">NEW</text>
+<text class="cb" x="851" y="734" text-anchor="middle">sleep patching &#183; stalling-loop detection</text>
+<text class="cb" x="851" y="748" text-anchor="middle">user-interaction simulation</text>
+<text class="cb" x="851" y="762" text-anchor="middle">VM-artifact masking</text>
+<text class="cb" x="851" y="776" text-anchor="middle">re-detonation under other configs</text>
+
+<line x1="724" y1="632" x2="731" y2="632" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="733" y1="742" x2="726" y2="742" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+
+<line x1="520" y1="813" x2="520" y2="823" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+
+<!-- ===================== STAGE 5 : DATA COLLECTION ===================== -->
+<rect x="40" y="825" width="960" height="160" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-width="1.6"/>
+<text class="stage" x="58" y="851" fill="#7e22ce">5. Data Collection &amp; Normalization</text>
+<text class="note" x="58" y="867">Syscall tracing produces millions of events per run &#8212; sampling and back-pressure are design requirements</text>
+
+<rect x="65" y="875" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="170" y="897" text-anchor="middle">Raw Events</text>
+<text class="cb" x="170" y="915" text-anchor="middle">process &#183; syscalls</text>
+<text class="cb" x="170" y="929" text-anchor="middle">network &#183; file ops</text>
+<text class="cb" x="170" y="943" text-anchor="middle">registry &#183; memory dumps</text>
+<text class="cb" x="170" y="957" text-anchor="middle">dropped artifacts</text>
+
+<rect x="295" y="875" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="400" y="897" text-anchor="middle">Event Normalization</text>
+<text class="cb" x="400" y="915" text-anchor="middle">parse &#183; normalize</text>
+<text class="cb" x="400" y="929" text-anchor="middle">deduplicate &#183; timestamp</text>
+<text class="cb" x="400" y="943" text-anchor="middle">enrich &#183; sample floods</text>
+<text class="cb" x="400" y="957" text-anchor="middle">one schema for all sensors</text>
+
+<rect x="525" y="875" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="630" y="897" text-anchor="middle">Event Store / Queue</text>
+<text class="cb" x="630" y="915" text-anchor="middle">decouples detonation rate</text>
+<text class="cb" x="630" y="929" text-anchor="middle">from analysis rate</text>
+<text class="cb" x="630" y="947" text-anchor="middle">buffers bursts, absorbs</text>
+<text class="cb" x="630" y="961" text-anchor="middle">back-pressure</text>
+
+<rect x="755" y="875" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="860" y="897" text-anchor="middle">Persist to Telemetry DB</text>
+<text class="cb" x="860" y="915" text-anchor="middle">durable, queryable</text>
+<text class="cb" x="860" y="929" text-anchor="middle">event history</text>
+<text class="cb" x="860" y="947" text-anchor="middle">replay old runs against</text>
+<text class="cb" x="860" y="961" text-anchor="middle">new rules, no re-detonation</text>
+
+<line x1="277" y1="920" x2="291" y2="920" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="507" y1="920" x2="521" y2="920" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="737" y1="920" x2="751" y2="920" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+
+<line x1="520" y1="985" x2="520" y2="998" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+
+<!-- ===================== STAGE 6 : ANALYSIS ENGINE ===================== -->
+<rect x="40" y="1000" width="960" height="232" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.6"/>
+<text class="stage" x="58" y="1026" fill="#b45309">6. Analysis Engine</text>
+<text class="note" x="58" y="1042">The verdict is produced here, by deterministic components &#8212; not by the language model downstream</text>
+
+<rect x="65" y="1050" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="170" y="1072" text-anchor="middle">Feature Extraction</text>
+<text class="cb" x="170" y="1090" text-anchor="middle">static features from stage 2</text>
+<text class="cb" x="170" y="1104" text-anchor="middle">+ process tree, API call</text>
+<text class="cb" x="170" y="1118" text-anchor="middle">frequency, file patterns,</text>
+<text class="cb" x="170" y="1132" text-anchor="middle">network + behavior sequences</text>
+
+<rect x="295" y="1050" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="400" y="1072" text-anchor="middle">Behavior Representation</text>
+<text class="cb" x="400" y="1090" text-anchor="middle">behavior graph</text>
+<text class="cb" x="400" y="1104" text-anchor="middle">sequence model</text>
+<text class="cb" x="400" y="1118" text-anchor="middle">vector embedding</text>
+<text class="cb" x="400" y="1132" text-anchor="middle">&#8594; written to Vector Index</text>
+
+<rect x="525" y="1050" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="630" y="1072" text-anchor="middle">Detection &amp; Classification</text>
+<text class="cb" x="630" y="1090" text-anchor="middle">rule-based checks (known bad)</text>
+<text class="cb" x="630" y="1104" text-anchor="middle">ML models (known family)</text>
+<text class="cb" x="630" y="1118" text-anchor="middle">anomaly detection (novel)</text>
+<text class="cb" x="630" y="1132" text-anchor="middle">similarity search (variants)</text>
+
+<rect x="755" y="1050" width="210" height="98" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="860" y="1072" text-anchor="middle">Threat Interpretation</text>
+<text class="cb" x="860" y="1090" text-anchor="middle">MITRE ATT&amp;CK mapping,</text>
+<text class="cb" x="860" y="1104" text-anchor="middle">each technique linked to the</text>
+<text class="cb" x="860" y="1118" text-anchor="middle">events that justify it</text>
+<text class="cb" x="860" y="1132" text-anchor="middle">risk score + confidence</text>
+
+<line x1="277" y1="1095" x2="291" y2="1095" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="507" y1="1095" x2="521" y2="1095" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="737" y1="1095" x2="751" y2="1095" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+
+<rect x="65" y="1160" width="900" height="58" rx="8" fill="#fef2f2" stroke="#ef4444"/>
+<rect x="880" y="1166" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="899" y="1177" text-anchor="middle">NEW</text>
+<text class="ct" x="515" y="1182" text-anchor="middle" fill="#b91c1c">Run Outcome State &#8212; recorded explicitly, never collapsed into &#8220;benign&#8221;</text>
+<text class="cb" x="515" y="1201" text-anchor="middle">Completed &#183; Timed out &#183; Crashed on launch &#183; No activity observed &#183; Sandbox evasion suspected</text>
+<text class="cb" x="515" y="1213" text-anchor="middle">Absence of evidence is not evidence of absence &#8212; the samples that matter most are the quiet ones.</text>
+
+<line x1="520" y1="1232" x2="520" y2="1243" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+
+<!-- ===================== STAGE 7 : AI REASONING ===================== -->
+<rect x="40" y="1245" width="960" height="182" rx="10" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.6"/>
+<text class="stage" x="58" y="1271" fill="#be185d">7. AI Reasoning &amp; Report Generation</text>
+<text class="note" x="58" y="1287">The model explains the evidence. It never adjudicates &#8212; the verdict arrived already decided from stage 6.</text>
+
+<rect x="66" y="1295" width="283" height="118" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="207" y="1317" text-anchor="middle">Evidence Aggregation</text>
+<text class="cb" x="207" y="1337" text-anchor="middle">collect the indicators that drove</text>
+<text class="cb" x="207" y="1351" text-anchor="middle">the verdict, each one paired with</text>
+<text class="cb" x="207" y="1365" text-anchor="middle">the exact supporting event IDs</text>
+<text class="cb" x="207" y="1385" text-anchor="middle">This pairing is what makes the</text>
+<text class="cb" x="207" y="1399" text-anchor="middle">report auditable later.</text>
+
+<rect x="373" y="1295" width="283" height="118" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="514" y="1317" text-anchor="middle">AI / LLM Reasoning</text>
+<text class="cb" x="514" y="1337" text-anchor="middle">summarize behavior, explain the</text>
+<text class="cb" x="514" y="1351" text-anchor="middle">reasoning, suggest next steps</text>
+<text class="cbw" x="514" y="1371" text-anchor="middle">Telemetry is attacker-controlled text.</text>
+<text class="cbw" x="514" y="1385" text-anchor="middle">Treat it as data, never instruction.</text>
+<text class="cbw" x="514" y="1399" text-anchor="middle">Strict schema &#183; must cite event IDs.</text>
+
+<rect x="680" y="1295" width="283" height="118" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="821" y="1317" text-anchor="middle">Generate Report</text>
+<text class="cb" x="821" y="1337" text-anchor="middle">verdict, confidence, indicators,</text>
+<text class="cb" x="821" y="1351" text-anchor="middle">timeline, behavior graph,</text>
+<text class="cb" x="821" y="1365" text-anchor="middle">MITRE mapping, recommendations</text>
+<text class="cb" x="821" y="1385" text-anchor="middle">+ provenance stamp: sandbox image,</text>
+<text class="cb" x="821" y="1399" text-anchor="middle">rule pack, model and config versions</text>
+
+<line x1="351" y1="1354" x2="369" y2="1354" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+<line x1="658" y1="1354" x2="676" y2="1354" stroke="#6b7280" stroke-width="1.4" marker-end="url(#ahs)"/>
+
+<line x1="520" y1="1427" x2="520" y2="1438" stroke="#374151" stroke-width="1.8" marker-end="url(#ah)"/>
+
+<!-- ===================== STAGE 8 : OUTPUT ===================== -->
+<rect x="40" y="1440" width="960" height="152" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.6"/>
+<text class="stage" x="58" y="1466" fill="#1d4ed8">8. Output &amp; Interaction</text>
+
+<rect x="65" y="1478" width="210" height="96" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="170" y="1500" text-anchor="middle">Web Dashboard</text>
+<text class="cb" x="170" y="1518" text-anchor="middle">verdict, timeline,</text>
+<text class="cb" x="170" y="1532" text-anchor="middle">behavior graph, evidence</text>
+<text class="cb" x="170" y="1550" text-anchor="middle">renders sample content</text>
+<text class="cb" x="170" y="1564" text-anchor="middle">inertly &#8212; never executes it</text>
+
+<rect x="295" y="1478" width="210" height="96" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="400" y="1500" text-anchor="middle">Download Report</text>
+<text class="cb" x="400" y="1518" text-anchor="middle">PDF / JSON / CSV</text>
+<text class="cb" x="400" y="1536" text-anchor="middle">version-stamped, so an old</text>
+<text class="cb" x="400" y="1550" text-anchor="middle">verdict stays explainable</text>
+<text class="cb" x="400" y="1564" text-anchor="middle">months later</text>
+
+<rect x="525" y="1478" width="210" height="96" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="630" y="1500" text-anchor="middle">Search / Compare</text>
+<text class="cb" x="630" y="1518" text-anchor="middle">vector similarity against</text>
+<text class="cb" x="630" y="1532" text-anchor="middle">previous analyses</text>
+<text class="cb" x="630" y="1550" text-anchor="middle">&#8220;what else behaved</text>
+<text class="cb" x="630" y="1564" text-anchor="middle">like this?&#8221;</text>
+
+<rect x="755" y="1478" width="210" height="96" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="860" y="1500" text-anchor="middle">Analyst Verdict</text>
+<rect x="927" y="1484" width="34" height="14" rx="7" fill="#10b981"/>
+<text class="bdg" x="944" y="1494" text-anchor="middle">NEW</text>
+<text class="cb" x="860" y="1518" text-anchor="middle">confirm or correct the</text>
+<text class="cb" x="860" y="1532" text-anchor="middle">automated result</text>
+<text class="cb" x="860" y="1550" text-anchor="middle">reviewed labels only &#8212;</text>
+<text class="cb" x="860" y="1564" text-anchor="middle">the gate against poisoning</text>
+
+<!-- feedback loop -->
+<path d="M 40 1526 H 20 V 1090 H 36" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text class="note" x="14" y="1310" text-anchor="middle" transform="rotate(-90 14 1310)">curated retraining loop &#8212; reviewed labels only, never auto-learned</text>
+
+<!-- ===================== SIDE: DATA STORAGE ===================== -->
+<rect x="1030" y="95" width="370" height="605" rx="10" fill="#f5f3ff" stroke="#6366f1" stroke-width="1.6"/>
+<text class="sideh" x="1215" y="126" text-anchor="middle">Data Storage</text>
+
+<rect x="1050" y="145" width="330" height="122" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1215" y="167" text-anchor="middle">File Storage</text>
+<text class="cb" x="1215" y="187" text-anchor="middle">samples, memory dumps, dropped artifacts</text>
+<text class="cb" x="1215" y="205" text-anchor="middle">Encrypted at rest. Exports leave as</text>
+<text class="cb" x="1215" y="219" text-anchor="middle">password-protected archives so nothing</text>
+<text class="cb" x="1215" y="233" text-anchor="middle">detonates by accident downstream.</text>
+<text class="cb" x="1215" y="253" text-anchor="middle">Retention and deletion policy defined.</text>
+
+<rect x="1050" y="285" width="330" height="122" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1215" y="307" text-anchor="middle">Telemetry DB</text>
+<text class="cb" x="1215" y="327" text-anchor="middle">normalized events, logs, artifact index</text>
+<text class="cb" x="1215" y="347" text-anchor="middle">Single source of truth for stage 6.</text>
+<text class="cb" x="1215" y="365" text-anchor="middle">Because raw events are kept, a new rule</text>
+<text class="cb" x="1215" y="379" text-anchor="middle">pack can be replayed over every historic</text>
+<text class="cb" x="1215" y="393" text-anchor="middle">run without touching a VM again.</text>
+
+<rect x="1050" y="425" width="330" height="122" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1215" y="447" text-anchor="middle">Metadata DB</text>
+<text class="cb" x="1215" y="467" text-anchor="middle">jobs, queue state, run outcomes, reports</text>
+<text class="cb" x="1215" y="487" text-anchor="middle">Holds the outcome state from stage 6, so</text>
+<text class="cb" x="1215" y="501" text-anchor="middle">&#8220;timed out&#8221; and &#8220;clean&#8221; stay distinguishable</text>
+<text class="cb" x="1215" y="515" text-anchor="middle">in every query and every dashboard count.</text>
+<text class="cb" x="1215" y="535" text-anchor="middle">Also stores provenance version stamps.</text>
+
+<rect x="1050" y="565" width="330" height="118" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1200" y="587" text-anchor="middle">Vector Index</text>
+<rect x="1268" y="574" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="1287" y="585" text-anchor="middle">NEW</text>
+<text class="cb" x="1215" y="607" text-anchor="middle">behavior embeddings from stage 6</text>
+<text class="cb" x="1215" y="627" text-anchor="middle">Similarity search and variant clustering</text>
+<text class="cb" x="1215" y="641" text-anchor="middle">both need this. The original design asked</text>
+<text class="cb" x="1215" y="655" text-anchor="middle">for both features but gave them nowhere</text>
+<text class="cb" x="1215" y="669" text-anchor="middle">to store or query the vectors.</text>
+
+<!-- ===================== SIDE: KNOWLEDGE & MODELS ===================== -->
+<rect x="1030" y="720" width="370" height="705" rx="10" fill="#f5f3ff" stroke="#6366f1" stroke-width="1.6"/>
+<text class="sideh" x="1215" y="751" text-anchor="middle">Knowledge &amp; Models</text>
+
+<rect x="1050" y="770" width="330" height="148" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1215" y="792" text-anchor="middle">ML Models</text>
+<text class="cb" x="1215" y="812" text-anchor="middle">classification &#183; anomaly &#183; clustering</text>
+<text class="cb" x="1215" y="832" text-anchor="middle">Trained on the labeled dataset below, on a</text>
+<text class="cb" x="1215" y="846" text-anchor="middle">documented train / test split.</text>
+<text class="cb" x="1215" y="866" text-anchor="middle">Every version tracks false-positive rate on</text>
+<text class="cb" x="1215" y="880" text-anchor="middle">a held-out set. FPR is the metric that</text>
+<text class="cb" x="1215" y="894" text-anchor="middle">decides whether analysts keep using this</text>
+<text class="cb" x="1215" y="908" text-anchor="middle">tool or start ignoring it.</text>
+
+<rect x="1050" y="936" width="330" height="130" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1215" y="958" text-anchor="middle">Rules Engine</text>
+<text class="cb" x="1215" y="978" text-anchor="middle">YARA rules, behavioral heuristics</text>
+<text class="cb" x="1215" y="998" text-anchor="middle">Versioned rule packs. The pack ID lands</text>
+<text class="cb" x="1215" y="1012" text-anchor="middle">in the report provenance stamp, so a</text>
+<text class="cb" x="1215" y="1026" text-anchor="middle">changed verdict can always be traced to</text>
+<text class="cb" x="1215" y="1040" text-anchor="middle">the rule change that caused it.</text>
+
+<rect x="1050" y="1084" width="330" height="112" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1215" y="1106" text-anchor="middle">Threat Intelligence</text>
+<text class="cb" x="1215" y="1126" text-anchor="middle">IPs, domains, hashes, external feeds</text>
+<text class="cb" x="1215" y="1146" text-anchor="middle">Enriches indicators during normalization</text>
+<text class="cb" x="1215" y="1160" text-anchor="middle">and again at reporting time.</text>
+<text class="cb" x="1215" y="1180" text-anchor="middle">Feed freshness is itself monitored.</text>
+
+<rect x="1050" y="1214" width="330" height="130" rx="8" fill="#fff" stroke="#d1d5db"/>
+<text class="ct" x="1200" y="1236" text-anchor="middle">Labeled Dataset</text>
+<rect x="1272" y="1223" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="1291" y="1234" text-anchor="middle">NEW</text>
+<text class="cb" x="1215" y="1256" text-anchor="middle">ground truth, with provenance per label</text>
+<text class="cb" x="1215" y="1276" text-anchor="middle">Built from analyst verdicts and curated</text>
+<text class="cb" x="1215" y="1290" text-anchor="middle">corpora. Retraining is a gated, reviewed</text>
+<text class="cb" x="1215" y="1304" text-anchor="middle">step &#8212; never an automatic loop, which</text>
+<text class="cb" x="1215" y="1318" text-anchor="middle">would let a poisoned label reshape the</text>
+<text class="cb" x="1215" y="1332" text-anchor="middle">model unnoticed.</text>
+
+<rect x="1050" y="1362" width="330" height="48" rx="8" fill="#eef2ff" stroke="#a5b4fc"/>
+<text class="cb" x="1215" y="1382" text-anchor="middle">Drift is monitored: when live score</text>
+<text class="cb" x="1215" y="1396" text-anchor="middle">distributions shift, the model is re-evaluated.</text>
+
+<!-- side connectors -->
+<line x1="1000" y1="200" x2="1026" y2="200" stroke="#374151" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M 1000 905 H 1012 V 347 H 1026" fill="none" stroke="#374151" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M 1000 1100 H 1012 V 845 H 1026" fill="none" stroke="#374151" stroke-width="1.6" marker-end="url(#ah)"/>
+<line x1="1000" y1="1010" x2="1026" y2="1010" stroke="#374151" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M 1000 1320 H 1012 V 1140 H 1026" fill="none" stroke="#374151" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M 1000 1520 H 1012 V 1290 H 1026" fill="none" stroke="#374151" stroke-width="1.6" marker-end="url(#ah)"/>
+
+<!-- ===================== GUARDRAILS ===================== -->
+<rect x="40" y="1612" width="1360" height="100" rx="10" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text class="stage" x="58" y="1638" fill="#b91c1c">Platform Guardrails &#8212; apply across every stage</text>
+<rect x="452" y="1626" width="38" height="15" rx="7" fill="#10b981"/>
+<text class="bdg" x="471" y="1637" text-anchor="middle">NEW</text>
+<text class="note" x="58" y="1654">This system stores and executes live malware. Its own security is part of the architecture, not an afterthought.</text>
+
+<rect x="62" y="1660" width="320" height="42" rx="7" fill="#fff" stroke="#fca5a5"/>
+<text class="ct" x="222" y="1678" text-anchor="middle">Containment</text>
+<text class="cb" x="222" y="1694" text-anchor="middle">escape hardening &#183; egress control &#183; worker isolation</text>
+
+<rect x="397" y="1660" width="320" height="42" rx="7" fill="#fff" stroke="#fca5a5"/>
+<text class="ct" x="557" y="1678" text-anchor="middle">Access Control</text>
+<text class="cb" x="557" y="1694" text-anchor="middle">authn / authz on UI and API &#183; full audit trail</text>
+
+<rect x="732" y="1660" width="320" height="42" rx="7" fill="#fff" stroke="#fca5a5"/>
+<text class="ct" x="892" y="1678" text-anchor="middle">Sample Safety</text>
+<text class="cb" x="892" y="1694" text-anchor="middle">encrypted at rest &#183; inert rendering &#183; safe exports</text>
+
+<rect x="1067" y="1660" width="320" height="42" rx="7" fill="#fff" stroke="#fca5a5"/>
+<text class="ct" x="1227" y="1678" text-anchor="middle">Reproducibility</text>
+<text class="cb" x="1227" y="1694" text-anchor="middle">image / rules / model / config versions stamped</text>
+
+<!-- ===================== SUMMARY ===================== -->
+<rect x="40" y="1728" width="1360" height="100" rx="10" fill="#f9fafb" stroke="#9ca3af" stroke-width="1.4"/>
+<text x="58" y="1752" font-size="13" font-weight="700" fill="#374151">How it works (summary)</text>
+
+<rect x="62" y="1762" width="205" height="50" rx="7" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text class="chip" x="164" y="1783" text-anchor="middle">Sample is submitted</text>
+<text class="chip" x="164" y="1797" text-anchor="middle">and stored safely</text>
+
+<rect x="282" y="1762" width="205" height="50" rx="7" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text class="chip" x="384" y="1783" text-anchor="middle">Statically triaged to</text>
+<text class="chip" x="384" y="1797" text-anchor="middle">pick a detonation plan</text>
+
+<rect x="502" y="1762" width="205" height="50" rx="7" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text class="chip" x="604" y="1783" text-anchor="middle">Detonated in a clean,</text>
+<text class="chip" x="604" y="1797" text-anchor="middle">instrumented sandbox</text>
+
+<rect x="722" y="1762" width="205" height="50" rx="7" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text class="chip" x="824" y="1783" text-anchor="middle">Telemetry normalized,</text>
+<text class="chip" x="824" y="1797" text-anchor="middle">stored and replayable</text>
+
+<rect x="942" y="1762" width="205" height="50" rx="7" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text class="chip" x="1044" y="1783" text-anchor="middle">Rules, ML and intel</text>
+<text class="chip" x="1044" y="1797" text-anchor="middle">decide the verdict</text>
+
+<rect x="1162" y="1762" width="205" height="50" rx="7" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text class="chip" x="1264" y="1783" text-anchor="middle">AI explains the evidence</text>
+<text class="chip" x="1264" y="1797" text-anchor="middle">in a versioned report</text>
+
+<line x1="269" y1="1787" x2="278" y2="1787" stroke="#6b7280" stroke-width="1.3" marker-end="url(#ahs)"/>
+<line x1="489" y1="1787" x2="498" y2="1787" stroke="#6b7280" stroke-width="1.3" marker-end="url(#ahs)"/>
+<line x1="709" y1="1787" x2="718" y2="1787" stroke="#6b7280" stroke-width="1.3" marker-end="url(#ahs)"/>
+<line x1="929" y1="1787" x2="938" y2="1787" stroke="#6b7280" stroke-width="1.3" marker-end="url(#ahs)"/>
+<line x1="1149" y1="1787" x2="1158" y2="1787" stroke="#6b7280" stroke-width="1.3" marker-end="url(#ahs)"/>
+
+</svg>
