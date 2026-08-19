@@ -1,0 +1,74 @@
+# UNVERIFIED. Docker is not installed on the development machine, so this file
+# has been reviewed by inspection and never run. See ACCEPTANCE.md.
+#
+# Brings up PostgreSQL, applies migrations, then starts the API and one worker.
+#
+#   docker compose up --build
+#
+# The bootstrap API key below is a development convenience. The application
+# refuses to start with it set when UPA_ENVIRONMENT=production.
+
+name: upa
+
+x-app-environment: &app-environment
+  UPA_ENVIRONMENT: development
+  UPA_DATABASE_URL: postgresql+asyncpg://upa:upa@db:5432/upa_dev
+  UPA_STORAGE_ROOT: /var/lib/upa/samples
+  UPA_BOOTSTRAP_API_KEY: upa_local_development_key
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: upa
+      POSTGRES_PASSWORD: upa
+      POSTGRES_DB: upa_dev
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # Other services wait on this, so "the container started" is not enough -
+      # PostgreSQL accepts connections some seconds after the process exists.
+      test: ["CMD-SHELL", "pg_isready -U upa -d upa_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Migrations run once, as their own service, rather than at application
+  # startup. Starting three replicas would otherwise start three migrations.
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    environment: *app-environment
+    ports:
+      - "8000:8000"
+    volumes:
+      - samples:/var/lib/upa/samples
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    command: ["python", "-m", "worker"]
+    environment:
+      <<: *app-environment
+      # The API instance already runs a reaper; a worker running a second one
+      # would be harmless but pointless.
+      UPA_RUN_REAPER: "false"
+    volumes:
+      - samples:/var/lib/upa/samples
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:
+  samples:

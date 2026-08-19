@@ -42,16 +42,21 @@ Two rules hold throughout:
 
 ## Stage 1 — version summary
 
-| Version | Name | Difficulty | Estimate | What exists at the end |
-|---|---|---|---|---|
-| **v0** | Project Setup | Easy | 0.5 day | Installable package, green test harness, lint and types clean |
-| **v1** | Walking Skeleton | Easy–Moderate | 1 day | A running API that accepts a file and returns a job you can fetch |
-| **v2** | Safe Intake | Moderate | 2–3 days | Encrypted, content-addressed, deduplicated storage behind a swappable protocol |
-| **v3** | Job Lifecycle and Queue | **Hard** | 3–4 days | Workers claim work safely; all five run outcomes locked in |
-| **v4** | Identification and Access | Moderate | 2–3 days | File type from magic bytes; API keys, scopes, rate limits, audit |
-| **v5** | Operations and Release | Moderate | 2–3 days | Provenance, safe download, health checks, coverage gate, Docker |
+| Version | Name | Difficulty | Estimate | What exists at the end | Status |
+|---|---|---|---|---|---|
+| **v0** | Project Setup | Easy | 0.5 day | Installable package, green test harness, lint and types clean | done |
+| **v1** | Walking Skeleton | Easy–Moderate | 1 day | A running API that accepts a file and returns a job you can fetch | done |
+| **v2** | Safe Intake | Moderate | 2–3 days | Encrypted, content-addressed, deduplicated storage behind a swappable protocol | done |
+| **v3** | Job Lifecycle and Queue | **Hard** | 3–4 days | Workers claim work safely; all five run outcomes locked in | done |
+| **v4** | Identification and Access | Moderate | 2–3 days | File type from magic bytes; API keys, scopes, rate limits, audit | done |
+| **v5** | Operations and Release | Moderate | 2–3 days | Provenance, safe download, health checks, coverage gate, Docker | done |
 
 Roughly 11–15 days at a steady pace.
+
+**Stage 1 is complete.** Every criterion in `ACCEPTANCE.md` is green: 332 tests,
+95% coverage against a 90% gate, ruff clean, mypy strict clean. What "complete"
+does and does not mean — including the unverified Docker artifacts and the
+per-process rate limiter — is written out in full at the end of `ACCEPTANCE.md`.
 
 ---
 

@@ -107,6 +107,14 @@ class Settings(BaseSettings):
         gt=0,
         description="How long a worker waits before asking for work again when the queue is empty.",
     )
+    run_reaper: bool = Field(
+        default=True,
+        description=(
+            "Run the lease reaper alongside the API. On by default: a reaper that has to be "
+            "started separately is a reaper that eventually is not, and abandoned jobs then "
+            "pile up with nothing reporting it."
+        ),
+    )
 
     # -- Access control ---------------------------------------------------
     rate_limit_per_minute: int = Field(

@@ -55,10 +55,19 @@ omit = ["app/__init__.py", "*/__init__.py"]
 
 [tool.coverage.report]
 show_missing = true
+
+# The gate. 90 rather than 100: the last few percent are reached by testing
+# error paths that cannot be provoked without contorting the code, and a target
+# that can only be met by writing tests for the sake of the number stops
+# measuring anything.
+fail_under = 90
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
+    # Protocol method bodies. There is nothing to execute, and the
+    # implementations behind them are covered by their contract suites.
+    '^\s*\.\.\.$',
 ]
 
 # ---------------------------------------------------------------------------

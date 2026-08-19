@@ -11,10 +11,12 @@ from __future__ import annotations
 import os
 import tempfile
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import UploadFile, status
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import AppError
@@ -37,6 +39,20 @@ class UploadTooLargeError(AppError):
     status_code = status.HTTP_413_CONTENT_TOO_LARGE
     title = "Payload Too Large"
     code = "upload-too-large"
+
+
+class EmptyUploadError(AppError):
+    """422 rather than 400: the request is well-formed, its content is not.
+
+    An empty file is almost always a client bug - a stream read twice, a path
+    that did not exist. Accepting it would create a sample and a job for the
+    empty digest, and every later submission of nothing at all would dedupe onto
+    that same row, which quietly turns a common mistake into permanent noise.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    title = "Empty Upload"
+    code = "empty-upload"
 
 
 @dataclass(frozen=True)
@@ -103,6 +119,8 @@ class IntakeService:
                     if len(header) < HEADER_SIZE:
                         header.extend(chunk[: HEADER_SIZE - len(header)])
                     sink.write(chunk)
+            if hasher.bytes_seen == 0:
+                raise EmptyUploadError("The uploaded file is empty.")
         except BaseException:
             staged.unlink(missing_ok=True)
             raise
@@ -129,14 +147,27 @@ class IntakeService:
             await self._storage.put(hashes.sha256, staged)
 
         if sample is None:
-            sample = Sample(
-                sha256=hashes.sha256,
-                sha1=hashes.sha1,
-                md5=hashes.md5,
-                size_bytes=hashes.size_bytes,
-                file_type=file_type,
+            # INSERT ... ON CONFLICT DO NOTHING rather than add(). Two requests
+            # carrying the same new bytes at the same instant both find no row
+            # and both try to create one; with a plain insert, the loser dies on
+            # the primary key and a legitimate submission is refused for a
+            # reason that has nothing to do with the caller.
+            #
+            # PostgreSQL blocks the second insert on the unique index until the
+            # first commits, then does nothing - so exactly one row is created
+            # and both callers proceed.
+            await self._session.execute(
+                pg_insert(Sample)
+                .values(
+                    sha256=hashes.sha256,
+                    sha1=hashes.sha1,
+                    md5=hashes.md5,
+                    size_bytes=hashes.size_bytes,
+                    first_seen_at=datetime.now(UTC),
+                    file_type=file_type,
+                )
+                .on_conflict_do_nothing(index_elements=["sha256"])
             )
-            self._session.add(sample)
 
         job = Job(original_filename=filename, sample_sha256=hashes.sha256)
 

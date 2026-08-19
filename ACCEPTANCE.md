@@ -190,13 +190,61 @@ whether a file is safe.
 
 ## v5 — Operations and Release
 
-| ID | Requirement | Status |
-|---|---|---|
-| AC-08 | Oversize upload rejected with 413, nothing persisted | pending |
-| AC-09 | Empty file rejected with 422 | pending |
-| AC-17 | Job status response includes state and provenance stamp | pending |
-| AC-18 | Provenance records app, schema and config versions | pending |
-| AC-20 | Download is attachment-only, octet-stream, scope-gated, `nosniff` | pending |
-| AC-23 | `/healthz` and `/readyz` behave correctly when the database is up and down | pending |
-| AC-24 | A large upload does not scale memory with file size | pending |
-| AC-25 | Concurrent identical submissions do not create duplicate sample rows | pending |
+| ID | Requirement | Test | Status |
+|---|---|---|---|
+| AC-08 | Oversize upload rejected with 413, nothing persisted | `tests/acceptance/test_v5_criteria.py` | done |
+| AC-09 | Empty file rejected with 422 | `tests/acceptance/test_v5_criteria.py` | done |
+| AC-17 | Job status response includes state and provenance stamp | `tests/acceptance/test_v5_criteria.py` | done |
+| AC-18 | Provenance records app, schema and config versions | `tests/acceptance/test_v5_criteria.py` | done |
+| AC-20 | Download is attachment-only, octet-stream, scope-gated, `nosniff` | `tests/acceptance/test_v5_criteria.py` | done |
+| AC-23 | `/healthz` and `/readyz` behave correctly when the database is up and down | `tests/acceptance/test_v5_criteria.py` | done |
+| AC-24 | A large upload does not scale memory with file size | `tests/acceptance/test_v5_criteria.py` | done |
+| AC-25 | Concurrent identical submissions do not create duplicate sample rows | `tests/acceptance/test_v5_criteria.py` | done |
+
+### Resolved in v5
+
+**The reaper now runs.** v3 built it and left it unwired, which meant abandoned
+jobs were recoverable in principle and recovered by nobody. It runs beside the
+API, one per instance; `UPA_RUN_REAPER=false` turns it off where something else
+runs it.
+
+**Encryption streams.** Sealing a sample used to read the whole file into memory
+and hold the ciphertext beside it — two copies of a file allowed to be 100 MB.
+It is now encrypted a chunk at a time from one file to another, producing a
+byte-identical envelope, so nothing already stored had to change.
+
+**Concurrent identical submissions no longer collide.** The sample row is
+inserted with `ON CONFLICT DO NOTHING`, so the loser of the race proceeds
+instead of being refused for a reason that has nothing to do with the caller.
+
+### What "Stage 1 complete" means
+
+The Stage 1 functional and security requirements are implemented and verified:
+325 tests green, coverage 95% against a 90% gate, ruff clean, mypy strict clean.
+
+It does **not** mean production ready. Specifically:
+
+**The Docker artifacts are unverified.** Docker is not installed on the
+development machine, so `Dockerfile` and `docker-compose.yml` have been checked
+by inspection only and never built or run. Both say so in their first lines.
+
+**The rate limiter is per process.** In-memory buckets mean N replicas enforce
+N times the configured rate. The `RateLimiter` interface exists so Redis can
+replace it; see the v4 notes.
+
+**The audit trail is append-only by convention**, not by a database rule. See
+the v4 notes.
+
+**Downloads are read into memory.** `SampleStorage.get` returns bytes, so a
+100 MB download costs 100 MB of memory. Uploads stream; downloads do not, and
+that asymmetry is deliberate only in the sense that uploads are the path an
+untrusted caller controls. A streaming read is the obvious next change to the
+storage protocol.
+
+**Two callers submitting the same new bytes at the same instant may both be
+told `duplicate: false`.** Exactly one sample row is created — AC-25 holds — but
+the flag reports what each request saw when it looked, and both looked before
+either wrote.
+
+**Cancellation has no endpoint.** `cancelled` is reachable from the domain and
+from the reaper, but no route exposes it. Operator interaction is Stage 8.

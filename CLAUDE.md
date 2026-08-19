@@ -14,7 +14,7 @@ Drop caveman for security warnings, irreversible-action confirmations, and any p
 
 Stage 1 (Input and Submission) of a malware behaviour analysis platform. See `VERSIONS.md` for the roadmap and `ACCEPTANCE.md` for the criteria that define each version as done.
 
-Current state: v3 complete. Next: v4 identification and access.
+Current state: v5 complete — Stage 1 finished. Next: review the architecture, then Stage 2 (static triage).
 
 Rules that hold across versions:
 - Every version ends green. No version leaves failing tests for the next.

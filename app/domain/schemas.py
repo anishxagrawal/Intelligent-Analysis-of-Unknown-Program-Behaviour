@@ -46,6 +46,20 @@ class SampleRead(BaseModel):
         )
 
 
+class Provenance(BaseModel):
+    """Which versions of this system handled a job.
+
+    Stamped at creation, returned on every read, and never recomputed from the
+    running process. A result explained months later has to be traceable to the
+    code and schema that produced it, and a stamp that reflects today's
+    deployment answers a different question than the one being asked.
+    """
+
+    app_version: str = Field(description="Version of the application code.")
+    schema_version: str = Field(description="Version of the database schema.")
+    config_version: str = Field(description="Version of the configuration contract.")
+
+
 class JobRead(BaseModel):
     """A job as returned to clients.
 
@@ -88,6 +102,10 @@ class JobRead(BaseModel):
         description="Container format of the submitted bytes.",
     )
 
+    provenance: Provenance = Field(
+        description="Versions in force when this job was created.",
+    )
+
     @classmethod
     def from_job(cls, job: Job) -> JobRead:
         return cls(
@@ -103,6 +121,11 @@ class JobRead(BaseModel):
             md5=job.sample.md5,
             size_bytes=job.sample.size_bytes,
             file_type=job.sample.file_type,
+            provenance=Provenance(
+                app_version=job.app_version,
+                schema_version=job.schema_version,
+                config_version=job.config_version,
+            ),
         )
 
 

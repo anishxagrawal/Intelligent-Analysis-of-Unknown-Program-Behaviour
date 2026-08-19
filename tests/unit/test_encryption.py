@@ -121,3 +121,73 @@ def test_key_from_base64_rejects_wrong_length() -> None:
 
     with pytest.raises(ValueError, match="32 bytes"):
         key_from_base64(base64.b64encode(os.urandom(16)).decode())
+
+
+# -- Streaming ------------------------------------------------------------
+
+
+def test_streamed_and_buffered_envelopes_are_interchangeable(key: bytes) -> None:
+    """The streaming path is an optimisation, not a second format.
+
+    Objects written before it existed must stay readable, and objects written
+    by it must be readable by anything that could read the old ones.
+    """
+    from io import BytesIO
+
+    from app.storage.encryption import seal_stream
+
+    sink = BytesIO()
+    seal_stream(BytesIO(PLAINTEXT), sink, key=key, key_id="k1")
+
+    assert unseal(sink.getvalue(), keys={"k1": key}) == PLAINTEXT
+
+
+def test_a_streamed_envelope_has_the_same_shape(key: bytes) -> None:
+    from io import BytesIO
+
+    from app.storage.encryption import seal_stream
+
+    sink = BytesIO()
+    seal_stream(BytesIO(PLAINTEXT), sink, key=key, key_id="k1")
+
+    assert sink.getvalue().startswith(ENVELOPE_MAGIC)
+    assert len(sink.getvalue()) == len(seal(PLAINTEXT, key=key, key_id="k1"))
+
+
+def test_streaming_crosses_chunk_boundaries_correctly(key: bytes) -> None:
+    """A payload spanning several chunks is where an off-by-one would show."""
+    from io import BytesIO
+
+    from app.storage.encryption import seal_stream
+
+    payload = bytes(range(256)) * 400
+    sink = BytesIO()
+    seal_stream(BytesIO(payload), sink, key=key, key_id="k1", chunk_size=1024)
+
+    assert unseal(sink.getvalue(), keys={"k1": key}) == payload
+
+
+def test_streaming_an_empty_payload_round_trips(key: bytes) -> None:
+    from io import BytesIO
+
+    from app.storage.encryption import seal_stream
+
+    sink = BytesIO()
+    seal_stream(BytesIO(b""), sink, key=key, key_id="k1")
+
+    assert unseal(sink.getvalue(), keys={"k1": key}) == b""
+
+
+def test_streaming_detects_tampering(key: bytes) -> None:
+    """Authentication is the reason for GCM; streaming must not weaken it."""
+    from io import BytesIO
+
+    from app.storage.encryption import DecryptionError, seal_stream
+
+    sink = BytesIO()
+    seal_stream(BytesIO(PLAINTEXT), sink, key=key, key_id="k1")
+    blob = bytearray(sink.getvalue())
+    blob[-20] ^= 0xFF
+
+    with pytest.raises(DecryptionError):
+        unseal(bytes(blob), keys={"k1": key})

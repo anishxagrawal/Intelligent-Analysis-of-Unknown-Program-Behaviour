@@ -2,7 +2,7 @@
 
 A system that takes a program nobody has seen before and works out what it does — by running it in a sealed environment, recording everything it touches, deciding whether that behaviour is dangerous, and explaining the decision with the evidence attached.
 
-**Current state: v4 — identification and access.** Files are streamed, hashed, deduplicated and stored encrypted at rest; jobs are claimed by workers exactly once and recovered when a worker dies; the container format is identified from magic bytes, and every call needs a scoped API key and is audited. No analysis capability yet. See [VERSIONS.md](VERSIONS.md) for the roadmap.
+**Current state: v5 — Stage 1 complete.** Files are streamed, hashed, deduplicated and stored encrypted at rest; jobs are claimed by workers exactly once and recovered when a worker dies; the container format is identified from magic bytes; every call needs a scoped API key and is audited; and every submission carries a provenance stamp. No analysis capability yet — that is Stage 2. See [VERSIONS.md](VERSIONS.md) for the roadmap and [ACCEPTANCE.md](ACCEPTANCE.md) for exactly what "complete" does and does not mean.
 
 ---
 
@@ -171,7 +171,7 @@ Just the acceptance suite, which defines whether a version is finished:
 python -m pytest -m acceptance -v
 ```
 
-With coverage:
+With coverage, which enforces a 90% gate:
 
 ```bash
 python -m pytest --cov=app --cov-report=term-missing
@@ -186,6 +186,24 @@ python -m ruff check .
 ```bash
 python -m mypy app
 ```
+
+---
+
+## Containers
+
+**Unverified.** Docker is not installed on the development machine, so
+`Dockerfile` and `docker-compose.yml` have been reviewed by inspection and never
+built or run. They are a starting point, not a tested artifact, and both say so
+in their first lines.
+
+```bash
+docker compose up --build
+```
+
+That brings up PostgreSQL, applies migrations as their own one-shot service,
+then starts the API on port 8000 and one worker. Migrations run separately
+rather than at application startup, because starting three replicas would
+otherwise start three migrations.
 
 ---
 
@@ -210,6 +228,7 @@ Every setting is read from the environment using the `UPA_` prefix, with default
 | `UPA_RATE_LIMIT_PER_MINUTE` | `120` | Requests per API key per minute |
 | `UPA_RATE_LIMIT_BURST` | _rate_ | Largest burst a key may spend at once |
 | `UPA_BOOTSTRAP_API_KEY` | _unset_ | Development key created at startup. Refused in production |
+| `UPA_RUN_REAPER` | `true` | Run the lease reaper alongside the API |
 | `UPA_API_PREFIX` | `/api/v1` | Prefix for versioned routes |
 
 ---
@@ -217,6 +236,7 @@ Every setting is read from the environment using the `UPA_` prefix, with default
 ## Project layout
 
 ```
+Dockerfile        unverified: reviewed by inspection, never built
 alembic/          schema migrations, applied with `alembic upgrade head`
 app/
   config.py       settings from environment

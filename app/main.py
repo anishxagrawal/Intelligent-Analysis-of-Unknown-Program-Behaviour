@@ -7,17 +7,22 @@ storage root without touching process-wide state.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import register_error_handlers
 from app.api.routes import health, jobs, samples, submissions
 from app.config import Settings, get_settings
 from app.db.session import create_engine, create_sessionmaker
 from app.logging import configure_logging, get_logger, set_request_id
+from app.queue.database import DatabaseJobQueue
+from app.queue.reaper import Reaper
 from app.security.audit import AuditLog
 from app.security.provisioning import ensure_bootstrap_key
 from app.security.ratelimit import TokenBucketRateLimiter
@@ -27,6 +32,24 @@ from app.version import APP_VERSION
 logger = get_logger(__name__)
 
 REQUEST_ID_HEADER = "X-Request-ID"
+
+
+async def _stop_reaper(
+    task: asyncio.Task[None] | None, session: AsyncSession | None
+) -> None:
+    """Cancel the reaper, wait for it to stop, then release its session.
+
+    The waiting matters. A cancelled task that is never awaited can still be
+    mid-statement when the engine is disposed, which turns a clean shutdown into
+    a warning nobody can reproduce.
+    """
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    if session is not None:
+        await session.close()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -65,10 +88,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.bootstrap_api_key:
             await ensure_bootstrap_key(sessionmaker, settings.bootstrap_api_key)
 
+        # The reaper runs beside the API rather than as its own service. Two
+        # reapers sweeping the same table is harmless - every update is guarded
+        # by the state it expects to find - so one per instance needs no
+        # coordination, and it removes the failure mode where a separate process
+        # is simply forgotten and abandoned jobs pile up unnoticed.
+        #
+        # One session for the life of the process, not one per sweep. Each sweep
+        # commits, so the next begins a new transaction and sees current data;
+        # a session per sweep would only add connection churn to a loop that
+        # runs forever.
+        app.state.reaper_task = None
+        app.state.reaper_session = None
+        if settings.run_reaper:
+            reaper_session = sessionmaker()
+            app.state.reaper_session = reaper_session
+            reaper = Reaper(
+                queue=DatabaseJobQueue(reaper_session),
+                max_attempts=settings.job_max_attempts,
+                interval_seconds=settings.reaper_interval_seconds,
+            )
+            app.state.reaper_task = asyncio.create_task(reaper.run_forever())
+
         logger.info("application started", extra={"environment": settings.environment})
         try:
             yield
         finally:
+            await _stop_reaper(app.state.reaper_task, app.state.reaper_session)
             await engine.dispose()
             logger.info("application stopped")
 

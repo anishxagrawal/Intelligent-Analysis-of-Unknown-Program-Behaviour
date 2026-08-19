@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import asyncio
 import os
+import uuid
 from collections.abc import Mapping
 from pathlib import Path
 
 from app.storage.base import SampleNotFoundError
-from app.storage.encryption import seal, unseal
+from app.storage.encryption import seal_stream, unseal
 
 
 class LocalFileSystemStorage:
@@ -48,15 +49,51 @@ class LocalFileSystemStorage:
         destination = self._path_for(key)
         destination.parent.mkdir(parents=True, exist_ok=True)
 
-        sealed = seal(source.read_bytes(), key=self._keys[self._key_id], key_id=self._key_id)
-
         # Write to a temporary neighbour and rename into place, so a crash
         # mid-write cannot leave a half-written object that later reads would
         # treat as real. Rename within a directory is atomic on both POSIX and
         # Windows filesystems we target.
-        staging = destination.with_name(f"{destination.name}.{os.getpid()}.partial")
-        staging.write_bytes(sealed)
-        os.replace(staging, destination)
+        #
+        # The staging name carries a random suffix as well as the process id.
+        # Two callers submitting identical bytes at the same moment are storing
+        # the same key, so a name derived only from the key and the pid would
+        # have them writing to one file and renaming it out from under each
+        # other.
+        staging = destination.with_name(
+            f"{destination.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.partial"
+        )
+
+        try:
+            # Encrypted a chunk at a time, from one file to another. Reading the
+            # sample into memory to seal it would hold two copies of a file that
+            # may be 100 MB, at exactly the moment several may arrive at once.
+            with source.open("rb") as plain, staging.open("wb") as sealed:
+                seal_stream(
+                    plain, sealed, key=self._keys[self._key_id], key_id=self._key_id
+                )
+            self._promote(staging, destination)
+        except BaseException:
+            staging.unlink(missing_ok=True)
+            raise
+
+    @staticmethod
+    def _promote(staging: Path, destination: Path) -> None:
+        """Move the finished object into place, tolerating a lost race.
+
+        Windows refuses a rename onto a path another writer is replacing at the
+        same instant, which happens whenever two callers submit identical bytes
+        together - they are, by construction, writing the same key.
+
+        Losing that race is harmless and needs no retry: content addressing
+        means whoever won wrote exactly the same bytes. The only wrong response
+        would be to report failure for an object that is present and correct.
+        """
+        try:
+            os.replace(staging, destination)
+        except OSError:
+            if not destination.exists():
+                raise
+            staging.unlink(missing_ok=True)
 
     async def get(self, key: str) -> bytes:
         """Return the decrypted contents stored under ``key``."""

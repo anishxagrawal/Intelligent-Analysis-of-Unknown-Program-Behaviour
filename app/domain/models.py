@@ -32,6 +32,7 @@ from app.db.base import Base
 from app.domain.enums import JobStatus, RunOutcome
 from app.domain.lifecycle import validate_transition
 from app.filetypes.base import FileType
+from app.version import APP_VERSION, CONFIG_VERSION, SCHEMA_VERSION
 
 SHA256_LENGTH = 64
 SHA1_LENGTH = 40
@@ -162,6 +163,16 @@ class Job(Base):
     #: cancelling it. Free text, because it is read by people rather than
     #: branched on by code.
     failure_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    # -- Provenance ------------------------------------------------------
+    #
+    # Stamped when the job is created and never updated. The point is to be able
+    # to ask, about a result produced months ago, which code and which schema
+    # produced it - so these record the versions in force at the moment of
+    # submission, not the versions running when somebody reads the row.
+    app_version: Mapped[str] = mapped_column(String(32), default=APP_VERSION, nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(32), default=SCHEMA_VERSION, nullable=False)
+    config_version: Mapped[str] = mapped_column(String(32), default=CONFIG_VERSION, nullable=False)
 
     sample_sha256: Mapped[str] = mapped_column(
         String(SHA256_LENGTH),

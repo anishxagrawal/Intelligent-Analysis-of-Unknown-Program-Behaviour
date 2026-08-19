@@ -23,8 +23,10 @@ from __future__ import annotations
 import base64
 import os
 from collections.abc import Mapping
+from typing import BinaryIO
 
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 #: Identifies our envelope format and version. A different first four bytes
@@ -34,6 +36,11 @@ ENVELOPE_MAGIC = b"UPA1"
 KEY_SIZE = 32  # AES-256
 NONCE_SIZE = 12  # the size GCM is specified for
 MAX_KEY_ID_LENGTH = 255
+
+#: How much is encrypted at a time when streaming. Large enough that the
+#: per-chunk overhead disappears, small enough that memory never tracks the
+#: size of the sample.
+SEAL_CHUNK_SIZE = 1024 * 1024
 
 
 class DecryptionError(Exception):
@@ -59,6 +66,12 @@ def key_from_base64(encoded: str) -> bytes:
 
 def seal(plaintext: bytes, *, key: bytes, key_id: str) -> bytes:
     """Encrypt a payload into a self-describing envelope."""
+    header, nonce = _prepare(key, key_id)
+    return header + nonce + AESGCM(key).encrypt(nonce, plaintext, header)
+
+
+def _prepare(key: bytes, key_id: str) -> tuple[bytes, bytes]:
+    """Validate the key and build the header and nonce for one new envelope."""
     if len(key) != KEY_SIZE:
         raise ValueError(f"Key must be {KEY_SIZE} bytes.")
 
@@ -66,16 +79,49 @@ def seal(plaintext: bytes, *, key: bytes, key_id: str) -> bytes:
     if not key_id_bytes or len(key_id_bytes) > MAX_KEY_ID_LENGTH:
         raise ValueError(f"Key id must be 1 to {MAX_KEY_ID_LENGTH} bytes when encoded.")
 
-    # A fresh nonce per object. Reusing a nonce with the same key breaks GCM
-    # badly, and identical objects would otherwise be visibly identical on disk.
-    nonce = os.urandom(NONCE_SIZE)
-
     # The header is authenticated but not encrypted, so a tampered key id is
     # detected rather than silently followed.
     header = ENVELOPE_MAGIC + bytes([len(key_id_bytes)]) + key_id_bytes
-    ciphertext = AESGCM(key).encrypt(nonce, plaintext, header)
 
-    return header + nonce + ciphertext
+    # A fresh nonce per object. Reusing a nonce with the same key breaks GCM
+    # badly, and identical objects would otherwise be visibly identical on disk.
+    return header, os.urandom(NONCE_SIZE)
+
+
+def seal_stream(
+    source: BinaryIO,
+    sink: BinaryIO,
+    *,
+    key: bytes,
+    key_id: str,
+    chunk_size: int = SEAL_CHUNK_SIZE,
+) -> None:
+    """Encrypt from one file object to another without holding either in memory.
+
+    Produces a byte-for-byte identical envelope to :func:`seal`, because GCM
+    output is ciphertext followed by the 16-byte tag either way. Anything sealed
+    here is readable by :func:`unseal` and the reverse, which is what allows the
+    streaming path to be introduced without a format change.
+
+    The reason it exists: samples are allowed to be 100 MB, and reading one
+    entirely into memory to encrypt it - then holding the ciphertext alongside
+    it - means peak memory tracks the size of the upload. Two copies of every
+    large file, at exactly the moment several may arrive together.
+    """
+    header, nonce = _prepare(key, key_id)
+
+    encryptor = Cipher(algorithms.AES(key), modes.GCM(nonce)).encryptor()
+    encryptor.authenticate_additional_data(header)
+
+    sink.write(header)
+    sink.write(nonce)
+    while chunk := source.read(chunk_size):
+        sink.write(encryptor.update(chunk))
+    sink.write(encryptor.finalize())
+
+    # GCM's tag is only known once everything has been fed in, which is why it
+    # is written last rather than into the header.
+    sink.write(encryptor.tag)
 
 
 def key_id_of(blob: bytes) -> str:
