@@ -274,6 +274,7 @@ Most of this system can be built and demonstrated using public datasets and purp
 |---|---|
 | [VERSIONS.md](VERSIONS.md) | Roadmap: what is built in what order, and why |
 | [ACCEPTANCE.md](ACCEPTANCE.md) | Numbered acceptance criteria and their current status |
+| [docs/Stage-1-Implementation.md](docs/Stage-1-Implementation.md) | What was built, which tools and why, and the decisions behind the code |
 | [docs/Project-Report.md](docs/Project-Report.md) | Problem statement, literature survey, gaps, methodology, references |
 | [docs/Prerequisites.md](docs/Prerequisites.md) | What to study for each architecture stage |
 | [docs/Overview-v2.png](docs/Overview-v2.png) | Architecture diagram |
